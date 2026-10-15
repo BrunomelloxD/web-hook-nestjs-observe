@@ -1,0 +1,90 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+  previewFeatures     = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Participant {
+  id        String    @id @default(uuid())
+  name      String    @db.VarChar(20)
+  // NFC + toLowerCase of a 20-character name. One character grows to at most
+  // 3 (U+FB2C: NFC gives 3 code points, 3 UTF-16 units; 'İ' lowercases to 2),
+  // and NFC/lowercasing never make a string longer than the sum of its parts:
+  // 20 x 3 = 60.
+  nameKey   String    @map("name_key") @db.VarChar(60)
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  joinedAt  DateTime  @default(now()) @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  messages  Message[]
+
+  @@unique([nameKey], map: "participants_online_name_key", where: { leftAt: null })
+  @@index([leftAt])
+  @@map("participants")
+}
+
+enum MessageType {
+  USER
+  JOINED
+  LEFT
+}
+
+// Immutable: no updatedAt.
+model Message {
+  id            String      @id @default(uuid())
+  seq           BigInt      @unique @default(autoincrement())
+  type          MessageType @default(USER)
+  content       String      @default("") @db.VarChar(1000)
+  clientId      String?     @map("client_id")
+  participantId String      @map("participant_id")
+  participant   Participant @relation(fields: [participantId], references: [id])
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([participantId])
+  @@map("messages")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+// One row per event; the payload is the whole envelope that was signed.
+model WebhookDelivery {
+  id         String                   @id @default(uuid())
+  eventId    String                   @unique @map("event_id")
+  eventType  String                   @map("event_type")
+  payload    Json
+  status     WebhookDeliveryStatus    @default(PENDING)
+  attempts   Int                      @default(0)
+  lastStatus Int?                     @map("last_status")
+  lastError  String?                  @map("last_error")
+  createdAt  DateTime                 @default(now()) @map("created_at")
+  updatedAt  DateTime                 @updatedAt @map("updated_at")
+  history    WebhookDeliveryAttempt[]
+
+  @@index([status])
+  @@map("webhook_deliveries")
+}
+
+// Immutable: one row per attempt, no updatedAt.
+model WebhookDeliveryAttempt {
+  id         String          @id @default(uuid())
+  deliveryId String          @map("delivery_id")
+  delivery   WebhookDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  attempt    Int
+  statusCode Int?            @map("status_code")
+  durationMs Int             @map("duration_ms")
+  error      String?
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@unique([deliveryId, attempt])
+  @@map("webhook_delivery_attempts")
+}

@@ -1,0 +1,297 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 17,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "surviving_mutant::when jsdom hides a side effect s payload such as cookie attributes spy on the setter and assert the exact payload written",
+      "text": "When jsdom hides a side effect's payload (such as cookie attributes), spy on the setter and assert the exact payload written.",
+      "signal": "surviving_mutant",
+      "scope": "web-tests",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md S7 apps/web/src/components/ui/theme-toggle.client.tsx:38 (web-tests)"
+      ],
+      "created": "2026-10-14T20:24:43Z",
+      "last_seen": "2026-10-14T20:24:43Z"
+    },
+    {
+      "id": "L-002",
+      "key": "surviving_mutant::assert which icon each visual state renders not only its label and visibility classes",
+      "text": "Assert which icon each visual state renders, not only its label and visibility classes.",
+      "signal": "surviving_mutant",
+      "scope": "web-components",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md S9 apps/web/src/components/ui/theme-toggle.client.tsx:45 (web-components)"
+      ],
+      "created": "2026-10-14T20:24:43Z",
+      "last_seen": "2026-10-14T20:24:43Z"
+    },
+    {
+      "id": "L-003",
+      "key": "surviving_mutant::a test environment sentinel must compare against a value independent of the config it is checking",
+      "text": "A test-environment sentinel must compare against a value independent of the config it is checking.",
+      "signal": "surviving_mutant",
+      "scope": "test-config",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md S11 apps/web/vitest.config.ts:55 (test-config)"
+      ],
+      "created": "2026-10-14T20:24:43Z",
+      "last_seen": "2026-10-14T20:24:43Z"
+    },
+    {
+      "id": "L-004",
+      "key": "surviving_mutant::literal color lint rules must also reject white and black palette classes",
+      "text": "Literal-color lint rules must also reject white and black palette classes.",
+      "signal": "surviving_mutant",
+      "scope": "lint",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md S30 apps/web/scripts/check-conventions.mjs:59 (lint)"
+      ],
+      "created": "2026-10-14T20:24:43Z",
+      "last_seen": "2026-10-14T20:24:43Z"
+    },
+    {
+      "id": "L-005",
+      "key": "spec_precision_gap::state in the spec whether placeholder text must meet aa contrast",
+      "text": "State in the spec whether placeholder text must meet AA contrast.",
+      "signal": "spec_precision_gap",
+      "scope": "spec-a11y",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md spec-precision gap 3 (text/muted on bg/subtle 4.16:1) (spec-a11y)"
+      ],
+      "created": "2026-10-14T20:24:43Z",
+      "last_seen": "2026-10-14T20:24:43Z"
+    },
+    {
+      "id": "L-006",
+      "key": "spec_precision_gap::reconcile every detail shown in design frames with the spec s component props before execute",
+      "text": "Reconcile every detail shown in design frames with the spec's component props before Execute.",
+      "signal": "spec_precision_gap",
+      "scope": "spec-design",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md spec-precision gap 1 (SystemMessage time in frames) (spec-design)"
+      ],
+      "created": "2026-10-14T20:24:43Z",
+      "last_seen": "2026-10-14T20:24:43Z"
+    },
+    {
+      "id": "L-007",
+      "key": "spec_deviation::pass per project values to vitest browser projects with provide inject not vite define",
+      "text": "Pass per-project values to Vitest browser projects with provide/inject, not Vite define.",
+      "signal": "spec_deviation",
+      "scope": "test-config",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "apps/web/vitest.config.ts:56 SPEC_DEVIATION define leaked (test-config)"
+      ],
+      "created": "2026-10-14T20:24:43Z",
+      "last_seen": "2026-10-14T20:24:43Z"
+    },
+    {
+      "id": "L-008",
+      "key": "surviving_mutant::assert that a parent passes the spec named field into a child s derived prop not only the child s own mapping",
+      "text": "Assert that a parent passes the spec-named field into a child's derived prop, not only the child's own mapping.",
+      "signal": "surviving_mutant",
+      "scope": "web-components",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N5 (apps/web/src/features/chat/components/message-bubble.tsx:31) (web-components)"
+      ],
+      "created": "2026-10-14T20:43:52Z",
+      "last_seen": "2026-10-14T20:43:52Z"
+    },
+    {
+      "id": "L-009",
+      "key": "surviving_mutant::test cookie parsing with a look alike cookie name so an unanchored match fails",
+      "text": "Test cookie parsing with a look-alike cookie name so an unanchored match fails.",
+      "signal": "surviving_mutant",
+      "scope": "web-tests",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N11, N16 (apps/web/src/lib/theme.ts:17, theme-toggle.client.tsx:19) (web-tests)"
+      ],
+      "created": "2026-10-14T20:43:52Z",
+      "last_seen": "2026-10-14T20:43:52Z"
+    },
+    {
+      "id": "L-010",
+      "key": "surviving_mutant::literal color lint rules must cover every tailwind color utility prefix and arbitrary named colors",
+      "text": "Literal-color lint rules must cover every Tailwind color utility prefix and arbitrary named colors.",
+      "signal": "surviving_mutant",
+      "scope": "lint",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md P2-P10 (apps/web/scripts/check-conventions.mjs:62-64) (lint)"
+      ],
+      "created": "2026-10-14T20:43:52Z",
+      "last_seen": "2026-10-14T20:43:52Z"
+    },
+    {
+      "id": "L-011",
+      "key": "surviving_mutant::assert spec quoted ui strings as literals not by reading the expected value back from the dictionary under test",
+      "text": "Assert spec-quoted UI strings as literals, not by reading the expected value back from the dictionary under test.",
+      "signal": "surviving_mutant",
+      "scope": "web-tests",
+      "status": "candidate",
+      "features": [
+        "chat-theme"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M24, M25, M28 (apps/web/src/features/chat/chat.dictionary.ts:29-30, chat-header.tsx:39) (web-tests)"
+      ],
+      "created": "2026-10-14T21:23:36Z",
+      "last_seen": "2026-10-14T21:23:36Z"
+    },
+    {
+      "id": "L-012",
+      "key": "surviving_mutant::assert that secrets such as session tokens and internal api urls are absent from the server rendered html and rsc payload not only from browser requests",
+      "text": "Assert that secrets such as session tokens and internal api URLs are absent from the server-rendered HTML and RSC payload, not only from browser requests.",
+      "signal": "surviving_mutant",
+      "scope": "web-e2e",
+      "status": "candidate",
+      "features": [
+        "chat-core"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md W31 (apps/web/src/features/chat/containers/chat-room.container.tsx:29) (web-e2e)"
+      ],
+      "created": "2026-10-15T01:48:46Z",
+      "last_seen": "2026-10-15T01:48:46Z"
+    },
+    {
+      "id": "L-013",
+      "key": "ac_gap::size a column that stores a transformed value for the longest output of the transform since unicode lowercasing can lengthen a string",
+      "text": "Size a column that stores a transformed value for the longest output of the transform, since Unicode lowercasing can lengthen a string.",
+      "signal": "ac_gap",
+      "scope": "api-schema",
+      "status": "candidate",
+      "features": [
+        "chat-core"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Fix 2 (JOIN-02 AC7, apps/api/prisma/schema.prisma name_key VarChar(20)) (api-schema)"
+      ],
+      "created": "2026-10-15T01:48:46Z",
+      "last_seen": "2026-10-15T01:48:46Z"
+    },
+    {
+      "id": "L-014",
+      "key": "spec_precision_gap::state in the spec the exact text of every user facing error message or name the dictionary key that owns it",
+      "text": "State in the spec the exact text of every user-facing error message, or name the dictionary key that owns it.",
+      "signal": "spec_precision_gap",
+      "scope": "spec-copy",
+      "status": "candidate",
+      "features": [
+        "chat-core"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md spec-precision gap 1 (JOIN-01 AC2-3, SEND-01 AC5, ROOM-01 AC13) (spec-copy)"
+      ],
+      "created": "2026-10-15T01:48:46Z",
+      "last_seen": "2026-10-15T01:48:46Z"
+    },
+    {
+      "id": "L-015",
+      "key": "spec_deviation::give proxy code its own feature entry module that has no server only env or action imports",
+      "text": "Give proxy code its own feature entry module that has no server-only, env or action imports.",
+      "signal": "spec_deviation",
+      "scope": "web-proxy",
+      "status": "candidate",
+      "features": [
+        "chat-core"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "apps/web/src/proxy.ts:2 SPEC_DEVIATION routing.ts entry (web-proxy)"
+      ],
+      "created": "2026-10-15T01:48:46Z",
+      "last_seen": "2026-10-15T01:48:46Z"
+    },
+    {
+      "id": "L-016",
+      "key": "spec_deviation::plan a test for every file the 100 percent coverage gate loads before the consumer that would exercise it exists",
+      "text": "Plan a test for every file the 100 percent coverage gate loads before the consumer that would exercise it exists.",
+      "signal": "spec_deviation",
+      "scope": "test-plan",
+      "status": "candidate",
+      "features": [
+        "chat-core"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "tasks.md T4/T7 SPEC_DEVIATION (apps/api/src/modules/chat/test/test-fixtures.spec.ts, dtos/response/test/chat-response-dtos.spec.ts) (test-plan)"
+      ],
+      "created": "2026-10-15T01:48:46Z",
+      "last_seen": "2026-10-15T01:48:46Z"
+    }
+  ]
+}

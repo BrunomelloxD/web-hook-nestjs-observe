@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/*.tsbuildinfo
+apps/*/src/generated
+.git
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+.vscode
+.idea
+docker-compose*.yml
+**/*.md

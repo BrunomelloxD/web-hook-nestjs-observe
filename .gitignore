@@ -1,0 +1,48 @@
+# dependências e build
+node_modules
+dist
+coverage
+.turbo
+*.tsbuildinfo
+
+# código gerado
+apps/*/src/generated
+
+# ambiente
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# editores e caches de ferramentas
+.DS_Store
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.lsp/
+.clj-kondo/
+openapi.json
+
+# Playwright
+playwright-report
+test-results
+blob-report
+
+# agentes de IA (skills instaladas localmente)
+.agents/
+.claude/
+.cursor/
+.windsurf/
+.codex/
+.gemini/
+.kiro/
+.opencode/
+
+# Storybook / Next
+storybook-static
+.next
+next-env.d.ts

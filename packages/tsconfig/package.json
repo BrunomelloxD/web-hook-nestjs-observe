@@ -1,0 +1,12 @@
+{
+  "name": "@repo/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Configurações base do TypeScript compartilhadas pelos apps e pacotes",
+  "files": [
+    "base.json",
+    "nest.json",
+    "next.json",
+    "library.json"
+  ]
+}

@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+.turbo
+.next
+storybook-static
+playwright-report
+test-results
+apps/*/src/generated
+packages/api-client/src/schema.d.ts
+apps/api/openapi.json
+package-lock.json
+
+# Rendered by the tlc-spec-driven lessons script; formatting would be overwritten.
+.specs/LESSONS.md
+.specs/lessons.json

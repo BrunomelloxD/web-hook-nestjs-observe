@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
+
+# CI runs the same make targets used locally.
+jobs:
+  quality:
+    name: Qualidade (make gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # --with-deps installs the OS libraries the CI runner lacks.
+      - name: Navegador do Playwright
+        run: npm exec --workspace=apps/web -- playwright install --with-deps chromium
+
+      - run: make gate
+
+      - name: Relatórios de cobertura
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            apps/*/coverage
+            packages/*/coverage
+          if-no-files-found: ignore
+
+      - name: Storybook (site estático)
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook
+          path: apps/web/storybook-static
+          if-no-files-found: ignore
+
+  e2e:
+    name: E2E (make e2e)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Navegador do Playwright
+        run: npm exec --workspace=apps/web -- playwright install --with-deps chromium
+
+      - run: make e2e
+
+      - name: Logs da stack
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Relatório do Playwright
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore
+
+  images:
+    name: Imagens Docker
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, web]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build ${{ matrix.app }} (production)
+        run: docker build -f apps/${{ matrix.app }}/Dockerfile --target production -t ${{ matrix.app }}:ci .

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "generate": {
+      "inputs": ["prisma/schema.prisma", "prisma.config.ts"],
+      "outputs": ["src/generated/**"]
+    },
+    "build": {
+      "dependsOn": ["^build", "^generate", "generate"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^generate", "generate"]
+    },
+    "lint": {
+      "dependsOn": ["^generate", "generate"]
+    },
+    "format": {
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["^generate", "generate"]
+    },
+    "test:e2e": {
+      "dependsOn": ["^generate", "generate"],
+      "cache": false
+    },
+    "test:cov": {
+      "dependsOn": ["^generate", "generate"],
+      "inputs": ["$TURBO_DEFAULT$", ".env"],
+      "passThroughEnv": ["DATABASE_URL"],
+      "outputs": ["coverage/**"]
+    },
+    "dev": {
+      "dependsOn": ["^generate", "generate"],
+      "cache": false,
+      "persistent": true
+    },
+    "api#openapi:export": {
+      "dependsOn": ["build"],
+      "outputs": ["openapi.json"]
+    },
+    "@repo/api-client#generate": {
+      "dependsOn": ["api#openapi:export"],
+      "inputs": ["$TURBO_ROOT$/apps/api/openapi.json"],
+      "outputs": ["src/schema.d.ts"]
+    },
+    "build-storybook": {
+      "dependsOn": ["^generate"],
+      "outputs": ["storybook-static/**"]
+    },
+    "test:storybook": {
+      "dependsOn": ["^generate"]
+    },
+    "check:conventions": {}
+  }
+}

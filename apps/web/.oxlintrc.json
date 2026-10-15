@@ -1,0 +1,102 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "overrides": [
+    {
+      "files": ["src/app/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@/features/*/**",
+                  "!@/features/*/index",
+                  "!@/features/*/client"
+                ],
+                "message": "app/ importa uma feature só pela API pública: '@/features/<x>' (servidor) ou '@/features/<x>/client' (Client Components)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/features/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/features/**"],
+                "message": "Uma feature não importa outra. Código compartilhado vai para components/ui ou lib/; dentro da própria feature use imports relativos."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/features/*/components/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@/lib/api",
+                "message": "Componentes só recebem dados por props. Busca de dados fica em queries/ e containers/."
+              },
+              {
+                "name": "@/lib/env",
+                "message": "Componentes não leem variáveis do servidor."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["@/features/**"],
+                "message": "Uma feature não importa outra. Código compartilhado vai para components/ui ou lib/; dentro da própria feature use imports relativos."
+              },
+              {
+                "group": ["../queries/*", "../containers/*"],
+                "message": "Componentes só recebem dados por props (queries/ e containers/ são do servidor)."
+              },
+              {
+                "group": ["../actions/*"],
+                "message": "Server Actions chegam ao componente por props (facilita testes e Storybook)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/components/ui/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@/lib/api",
+                "message": "components/ui é genérico: não acessa a api."
+              },
+              {
+                "name": "@/lib/env",
+                "message": "components/ui é genérico: não lê variáveis do servidor."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["@/features/**"],
+                "message": "components/ui é genérico: não depende de features."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

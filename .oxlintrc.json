@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "**/src/generated/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/storybook-static/**",
+    "**/coverage/**"
+  ],
+  "rules": {
+    "typescript/no-explicit-any": "off",
+    "typescript/no-floating-promises": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.spec.ts", "**/*.spec.tsx", "**/*.e2e-spec.ts"],
+      "rules": {
+        "typescript/unbound-method": "off"
+      }
+    }
+  ],
+  "env": {
+    "node": true
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@repo/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Client HTTP tipado da api, gerado a partir do OpenAPI exportado por apps/api",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ../../apps/api/openapi.json -o src/schema.d.ts",
+    "lint": "oxlint --type-aware src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage",
+    "format": "prettier --write src"
+  },
+  "devDependencies": {
+    "@repo/tsconfig": "*",
+    "@repo/vitest-config": "*",
+    "@vitest/coverage-v8": "4.1.11",
+    "openapi-typescript": "7.13.0",
+    "vitest": "4.1.11"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  }
+}
