@@ -46,6 +46,9 @@ model Message {
   participant   Participant @relation(fields: [participantId], references: [id])
   createdAt     DateTime    @default(now()) @map("created_at")
 
+  // A retry reuses its clientId. NULLs never conflict, so system messages and
+  // sends without clientId stay free.
+  @@unique([participantId, clientId], map: "messages_participant_client_key")
   @@index([participantId])
   @@map("messages")
 }

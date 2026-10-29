@@ -16,6 +16,9 @@ export const chatDictionary = {
     you: 'Você',
     loadError: 'Não foi possível carregar a sala',
     retry: 'Tentar novamente',
+    newMessages: 'Novas mensagens ↓',
+    loadOlder: 'Carregar mensagens anteriores',
+    loadingOlder: 'Carregando…',
   },
   composer: {
     label: 'Mensagem',
@@ -47,8 +50,10 @@ export const chatDictionary = {
     nameInvalid:
       'O nome deve ter de 2 a 20 caracteres: letras, números, espaço, ".", "_" ou "-".',
     joinFailed: 'Não foi possível entrar no chat. Tente de novo.',
-    send: 'Não foi possível enviar a mensagem. Tente de novo.',
+    rateLimited:
+      'Você está enviando mensagens rápido demais. Aguarde alguns segundos.',
     messageTooLong: 'A mensagem pode ter no máximo 1000 caracteres.',
     reconnecting: 'Reconectando…',
+    loadOlderFailed: 'Não foi possível carregar as mensagens anteriores.',
   },
 } as const;

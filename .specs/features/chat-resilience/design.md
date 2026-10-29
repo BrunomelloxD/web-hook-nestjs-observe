@@ -99,6 +99,7 @@ stateDiagram-v2
   - `parseLastEventId(header: string | null): number | null` — inteiro positivo ou `null` (RECON-01 AC3)
   - Com `lastEventId`: `subscribe(conn, { recovering: true })` **antes** de buscar (premissa da spec); `recoverMissed(after)` pagina `getMessages({ after, limit: 100 })` até vir menos de 100 e escreve cada uma com `id: seq`; depois `flush(último seq escrito)`
   - Falha na busca → `unsubscribe()` + `controller.error()`; o `EventSource` reconecta com o mesmo `Last-Event-ID` (AC4)
+  - Ponto de partida: `parseLastEventId(Last-Event-ID) ?? parseLastEventId(query after)` (RECON-01 AC7). O `EventSource` reconecta com a mesma URL, então, depois do primeiro evento `message`, o cabeçalho vence o `after` do SSR
 
 ### `chatRoomReducer` (extensão)
 
@@ -120,6 +121,7 @@ stateDiagram-v2
 - `retry(clientId)`: `message/retry` e reenvio com o mesmo `clientId` e conteúdo
 - `useChatEvents` ganha `onStatus(status)`: `error` → `reconnecting`; `open` → `open`; o `Composer` recebe `notice={t.reconnecting}` (RECON-02 AC5-6)
 - Pede ao `MessageList` para rolar até o fim ao enviar (SCROLL-01 AC5)
+- Abre o stream com `after` = último `seq` de `initialMessages`, calculado uma vez na montagem para a URL do `EventSource` não mudar; sem mensagens, sem `after` (RECON-01 AC8)
 
 ### Rolagem (`MessageList.client` + `use-stick-to-bottom.ts`)
 

@@ -4,7 +4,7 @@ Estrutura base padrão para o app `api` (NestJS) do monorepo. Visão geral do mo
 Este app fica em `apps/api`. Os comandos abaixo podem ser rodados **dentro de `apps/api`** ou **da raiz**, com `--workspace=apps/api` (ex.: `npm run test:cov --workspace=apps/api`).
 Este documento descreve **como o código é organizado** e **as convenções que todo módulo novo deve seguir**.
 
-O módulo `chat` (participantes e mensagens) é o domínio do projeto e a referência do padrão. A exceção dele à convenção de repositórios está na [seção 14](#14-decisões).
+O módulo `chat` (participantes, mensagens e aviso de digitação) é o domínio do projeto e a referência do padrão. A exceção dele à convenção de repositórios está na [seção 14](#14-decisões). O módulo `webhooks` entrega os eventos do chat ao `web` ([seção 15](#15-webhooks-moduleswebhooks)).
 
 ---
 
@@ -58,25 +58,38 @@ O módulo `chat` (participantes e mensagens) é o domínio do projeto e a refer�
 │       ├── health/
 │       │   ├── controllers/
 │       │   └── indicators/
-│       └── <dominio>/             # ex.: chat/
-│           ├── controllers/
-│           │   └── test/
-│           ├── services/
-│           │   └── test/
-│           ├── repositories/
-│           │   └── test/
-│           ├── dtos/
-│           │   ├── request/
-│           │   └── response/
-│           ├── mappers/
-│           ├── test-fixtures.ts       # dados de teste compartilhados (make<Entidade>)
-│           └── <dominio>.module.ts
+│       ├── chat/                  # domínio do projeto e referência do padrão
+│       │   ├── controllers/
+│       │   │   └── test/
+│       │   ├── services/          # inclui SendRateLimiter e TypingService
+│       │   │   └── test/
+│       │   ├── repositories/
+│       │   │   └── test/
+│       │   ├── dtos/
+│       │   │   ├── request/
+│       │   │   └── response/
+│       │   ├── mappers/
+│       │   ├── guards/            # ParticipantTokenGuard (X-Participant-Token)
+│       │   ├── decorators/        # @CurrentParticipant
+│       │   ├── filters/           # RateLimitedExceptionFilter (429 + Retry-After)
+│       │   ├── security/          # geração e hash do token, chave do nome
+│       │   ├── test-fixtures.ts   # dados de teste compartilhados (make<Entidade>)
+│       │   └── chat.module.ts
+│       └── webhooks/              # entrega dos eventos ao web (seção 15)
+│           ├── services/          # WebhookDispatcher
+│           ├── repositories/      # entregas e tentativas
+│           ├── http/              # WebhookHttpClient (fetch com timeout)
+│           ├── signing/           # assinatura Standard Webhooks
+│           ├── webhook.types.ts   # WebhookEventType e envelope
+│           └── webhooks.module.ts
 ├── test/                          # testes e2e
 ├── tools/vitest/                  # plugin de cobertura (branches gerados por decorators)
 ├── Dockerfile
 ├── docker-compose.yml
 └── .env.example
 ```
+
+Toda pasta de código tem um `test/` ao lado com os specs (no `chat`, mostrado só nas três camadas principais). Um módulo novo (`<dominio>/`) segue o formato do `chat`: `controllers/`, `services/`, `repositories/`, `dtos/`, `mappers/` e `<dominio>.module.ts`. Pastas como `guards/`, `decorators/`, `filters/` e `security/` só existem quando o domínio precisa delas.
 
 ### Regra de ouro
 
@@ -125,7 +138,7 @@ Toda a configuração global fica em `setupApp(app)`, chamado pelo `main.ts` **e
 
 O `app.module.ts` registra os itens globais via DI:
 
-- `APP_GUARD` com `ThrottlerGuard`: rate limit aplicado a todas as rotas (o health usa `@SkipThrottle`).
+- `APP_GUARD` com `ThrottlerGuard`: rate limit por IP aplicado a todas as rotas. O health e os controllers do `chat` usam `@SkipThrottle()`: todo o tráfego do chat chega do servidor do web, com o mesmo IP, então o limite do chat é por participante (ver [seção 14](#14-decisões) e AD-004 em `.specs/STATE.md`).
 - `APP_FILTER` com `PrismaExceptionFilter` (ver [5.7](#57-exceções)).
 
 Para criar uma versão nova de um endpoint, use `@Controller({ path: 'x', version: '2' })` ou `@Version('2')` no método.
@@ -188,7 +201,7 @@ Monte a resposta com `PaginatedResponseDto.create(items, total, pagination)`. O 
 
 ### 5.4 Repositórios
 
-Todo repositório tem um contrato que estende `IBaseRepository`, tipado com os **tipos do Prisma** (exceção: os repositórios do `chat`, ver abaixo e a [seção 14](#14-decisões)):
+Todo repositório tem um contrato que estende `IBaseRepository`, tipado com os **tipos do Prisma** (exceção: os repositórios do `chat` e do `webhooks`, ver abaixo e a [seção 14](#14-decisões)):
 
 ```ts
 // src/common/interfaces/base-repository.interface.ts
@@ -220,6 +233,10 @@ export abstract class IMessageRepository {
   abstract findPage(
     params: FindMessagePageParams,
   ): Promise<MessageWithAuthor[]>;
+  abstract findByClientId(
+    participantId: string,
+    clientId: string,
+  ): Promise<MessageWithAuthor | null>;
   abstract create(data: CreateMessageData): Promise<MessageWithAuthor>;
 }
 ```
@@ -239,10 +256,13 @@ Os services dependem **do contrato**, e o módulo faz a ligação com a implemen
 ```ts
 // chat.module.ts
 @Module({
-  controllers: [ParticipantsController, MessagesController],
+  imports: [WebhooksModule],
+  controllers: [ParticipantsController, MessagesController, TypingController],
   providers: [
     ParticipantsService,
     MessagesService,
+    SendRateLimiter,
+    TypingService,
     ParticipantTokenGuard,
     { provide: IParticipantRepository, useClass: ParticipantRepository },
     { provide: IMessageRepository, useClass: MessageRepository },
@@ -254,7 +274,11 @@ export class ChatModule {}
 
 ```ts
 // messages.service.ts
-constructor(private readonly messages: IMessageRepository) {}
+constructor(
+  private readonly messages: IMessageRepository,
+  private readonly webhooks: WebhookDispatcher,
+  private readonly rateLimiter: SendRateLimiter,
+) {}
 ```
 
 Nos testes, o mock é registrado no lugar do contrato: `{ provide: IMessageRepository, useValue: mock }`.
@@ -298,6 +322,8 @@ O `PrismaExceptionFilter` (global) converte os erros do Prisma:
 | outros        | erro inesperado (é logado)              | 500  |
 
 O service lança exceções do Nest (`NotFoundException`, `ConflictException`...) só para **regras de negócio** ou quando quer uma mensagem específica, como no `findById`.
+
+Quando a resposta precisa de um header, a exceção é própria e um filtro do módulo escreve o header, para que controller e service não usem `@Res`. Ex.: o limite de envio do `chat` lança `RateLimitedException`, e o `RateLimitedExceptionFilter` (aplicado com `@UseFilters` no `POST /chat/messages`) responde `429` com `Retry-After` em segundos inteiros.
 As mensagens são voltadas ao usuário final.
 
 ### 5.8 Controllers e Swagger
@@ -406,16 +432,18 @@ this.config.isProduction;       // boolean
 
 **Não use `process.env` no código.** Para adicionar uma variável nova, declare no `env.schema.ts` e no `.env.example`.
 
-| Variável         | Uso                                                          | Padrão                  |
-| ---------------- | ------------------------------------------------------------ | ----------------------- |
-| `DATABASE_URL`   | conexão do Prisma                                            | **obrigatória**         |
-| `NODE_ENV`       | `development`, `test` ou `production`                        | `development`           |
-| `PORT`           | porta HTTP                                                   | `3333`                  |
-| `APP_NAME`       | título do Swagger                                            | `api`                   |
-| `LOG_LEVEL`      | nível do pino (`info`, `debug`, `silent`...)                 | `info`                  |
-| `CORS_ORIGIN`    | origens permitidas, separadas por `,` (o `web` roda na 3000) | `http://localhost:3000` |
-| `THROTTLE_TTL`   | janela do rate limit (ms)                                    | `60000`                 |
-| `THROTTLE_LIMIT` | requisições por IP na janela                                 | `60`                    |
+| Variável             | Uso                                                          | Padrão                  |
+| -------------------- | ------------------------------------------------------------ | ----------------------- |
+| `DATABASE_URL`       | conexão do Prisma                                            | **obrigatória**         |
+| `NODE_ENV`           | `development`, `test` ou `production`                        | `development`           |
+| `PORT`               | porta HTTP                                                   | `3333`                  |
+| `APP_NAME`           | título do Swagger                                            | `api`                   |
+| `LOG_LEVEL`          | nível do pino (`info`, `debug`, `silent`...)                 | `info`                  |
+| `CORS_ORIGIN`        | origens permitidas, separadas por `,` (o `web` roda na 3000) | `http://localhost:3000` |
+| `THROTTLE_TTL`       | janela do rate limit (ms)                                    | `60000`                 |
+| `THROTTLE_LIMIT`     | requisições por IP na janela                                 | `60`                    |
+| `WEBHOOK_TARGET_URL` | URL que recebe os webhooks do chat (o `web`)                 | **obrigatória**         |
+| `WEBHOOK_SECRET`     | segredo de assinatura (`whsec_` + base64), igual ao do `web` | **obrigatória**         |
 
 **Onde fica cada variável:**
 
@@ -566,8 +594,11 @@ O `--omit=optional --omit=peer` existe porque a CLI do Prisma é peer opcional d
    - o `ChatModule` no `app.module.ts`;
    - os models `Participant` e `Message` e o enum `MessageType` no `schema.prisma`;
    - a pasta `prisma/migrations/` (a primeira migration do projeto será gerada a partir dos seus models);
-   - o `test/chat.e2e-spec.ts`.
-4. Crie os módulos do domínio seguindo a [seção 13](#13-checklist-criando-um-módulo-novo).
+   - o `test/chat.e2e-spec.ts`, o `test/typing.e2e-spec.ts` e o `test/webhooks.e2e-spec.ts` (este dispara os eventos pelas rotas do chat).
+4. Decida o que fazer com os webhooks ([seção 15](#15-webhooks-moduleswebhooks)):
+   - **o domínio novo vai emitir eventos:** mantenha a pasta `src/modules/webhooks/`, os models `WebhookDelivery` e `WebhookDeliveryAttempt` e o enum `WebhookDeliveryStatus` (tabelas `webhook_deliveries` e `webhook_delivery_attempts`). Troque os tipos da união `WebhookEventType` pelos do domínio novo e importe o `WebhooksModule` no módulo que emite (ele não é registrado no `AppModule`);
+   - **não vai:** remova também a pasta `src/modules/webhooks/`, esses dois models e o enum, e as variáveis `WEBHOOK_TARGET_URL` e `WEBHOOK_SECRET` do `env.schema.ts` e do `.env.example` (senão a api não sobe sem elas).
+5. Crie os módulos do domínio seguindo a [seção 13](#13-checklist-criando-um-módulo-novo).
 
 ---
 
@@ -592,14 +623,84 @@ O `--omit=optional --omit=peer` existe porque a CLI do Prisma é peer opcional d
 
 Por que a api é como é. Ao mudar uma destas decisões, atualize esta tabela.
 
-| Decisão                                                                               | Alternativas consideradas                                 | Motivo                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **O Swagger (OpenAPI) é o contrato com o web**; o `@repo/api-client` é gerado dele    | schemas zod compartilhados (`nestjs-zod`); tRPC / ts-rest | Mantém class-validator e o padrão REST + Swagger do Nest. O contrato é a própria documentação. Zod compartilhado trocaria a validação da base inteira, e tRPC criaria um contrato paralelo aos controllers                                                                                                                 |
-| Export do OpenAPI no **modo `preview`** do Nest                                       | subir a app com banco; mockar o `PrismaService`           | Não instancia providers, então não precisa de banco nem de `.env`. Roda no CI e dentro do build do Docker                                                                                                                                                                                                                  |
-| Branches de decorators tratados por **plugin do Vitest**                              | provider `istanbul`; comentários de ignore                | O istanbul deu o mesmo resultado do v8. O plugin marca só o código gerado pelo compilador, e ignores no código continuam proibidos                                                                                                                                                                                         |
-| **Vitest 4**                                                                          | Vitest 5                                                  | É a versão do scaffold oficial do NestJS. O web usa a mesma, para ter uma versão só no monorepo                                                                                                                                                                                                                            |
-| **Prisma 7**                                                                          | Prisma 8                                                  | A tag `latest` do npm apontava para uma versão RC da 8; a 7 é a estável                                                                                                                                                                                                                                                    |
-| Porta **3333**                                                                        | 3000                                                      | A 3000 é do web                                                                                                                                                                                                                                                                                                            |
-| Cobertura = **unitários + e2e**                                                       | só unitários                                              | Os arquivos declarativos (`*.module.ts`) ficam cobertos pelo e2e, sem testes artificiais                                                                                                                                                                                                                                   |
-| Autenticação                                                                          | JWT na api + cookie `httpOnly` no web                     | **Em aberto.** Ainda não implementada                                                                                                                                                                                                                                                                                      |
-| Repositórios do `chat` **sem `IBaseRepository`** (exceção ao [5.4](#54-repositórios)) | estender `IBaseRepository` e implementar o CRUD genérico  | O domínio só insere participantes e mensagens e marca a saída; não tem listagem paginada, update nem delete genéricos. Métodos CRUD sem uso exigiriam testes artificiais para manter os 100%. Os contratos continuam classes abstratas (token de injeção), com métodos de domínio (`createWithJoinMessage`, `findPage`...) |
+| Decisão                                                                               | Alternativas consideradas                                 | Motivo                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **O Swagger (OpenAPI) é o contrato com o web**; o `@repo/api-client` é gerado dele    | schemas zod compartilhados (`nestjs-zod`); tRPC / ts-rest | Mantém class-validator e o padrão REST + Swagger do Nest. O contrato é a própria documentação. Zod compartilhado trocaria a validação da base inteira, e tRPC criaria um contrato paralelo aos controllers                                                                                                                                                                                                             |
+| Export do OpenAPI no **modo `preview`** do Nest                                       | subir a app com banco; mockar o `PrismaService`           | Não instancia providers, então não precisa de banco nem de `.env`. Roda no CI e dentro do build do Docker                                                                                                                                                                                                                                                                                                              |
+| Branches de decorators tratados por **plugin do Vitest**                              | provider `istanbul`; comentários de ignore                | O istanbul deu o mesmo resultado do v8. O plugin marca só o código gerado pelo compilador, e ignores no código continuam proibidos                                                                                                                                                                                                                                                                                     |
+| **Vitest 4**                                                                          | Vitest 5                                                  | É a versão do scaffold oficial do NestJS. O web usa a mesma, para ter uma versão só no monorepo                                                                                                                                                                                                                                                                                                                        |
+| **Prisma 7**                                                                          | Prisma 8                                                  | A tag `latest` do npm apontava para uma versão RC da 8; a 7 é a estável                                                                                                                                                                                                                                                                                                                                                |
+| Porta **3333**                                                                        | 3000                                                      | A 3000 é do web                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Cobertura = **unitários + e2e**                                                       | só unitários                                              | Os arquivos declarativos (`*.module.ts`) ficam cobertos pelo e2e, sem testes artificiais                                                                                                                                                                                                                                                                                                                               |
+| **Token opaco por participante** no header `X-Participant-Token`                      | JWT na api + cookie `httpOnly` no web                     | O `POST /chat/participants` devolve um token aleatório (32 bytes, base64url) e só o hash SHA-256 é gravado. O `ParticipantTokenGuard` resolve o participante online pelo hash. Quem guarda o token é o web, no cookie `httpOnly` da sessão (AD-002 em `.specs/STATE.md`)                                                                                                                                               |
+| Controllers do `chat` com **`@SkipThrottle()`** (AD-004)                              | manter o `ThrottlerGuard` global por IP                   | Todo o tráfego do chat chega do servidor do web, com o mesmo IP: o limite de 60 req/min por IP bloquearia a sala inteira com poucos participantes. O abuso é limitado por participante (envio e digitação)                                                                                                                                                                                                             |
+| Limites do `chat` **em memória** (`SendRateLimiter`, `TypingService`)                 | —                                                         | A api roda com uma instância. Envio: janela deslizante de 5 mensagens em 10 s por participante. Digitação: no máximo um `typing.started` a cada 2 s por participante, com uma tentativa de entrega só. O relógio do limiter entra por parâmetro, para testes determinísticos                                                                                                                                           |
+| **Idempotência do envio por `clientId`**                                              | —                                                         | Índice único `(participant_id, client_id)`. O service procura o `clientId` antes de aplicar o limite: um reenvio devolve a mensagem gravada, não gasta o limite nem dispara o webhook de novo. Se dois reenvios correrem, o `P2002` do segundo vira a leitura da mensagem gravada                                                                                                                                      |
+| Repositórios do `chat` **sem `IBaseRepository`** (exceção ao [5.4](#54-repositórios)) | estender `IBaseRepository` e implementar o CRUD genérico  | O domínio só insere participantes e mensagens e marca a saída; não tem listagem paginada, update nem delete genéricos. Métodos CRUD sem uso exigiriam testes artificiais para manter os 100%. Os contratos continuam classes abstratas (token de injeção), com métodos de domínio (`createWithJoinMessage`, `findPage`...). O mesmo vale para o `IWebhookDeliveryRepository` (`create`, `recordAttempt`, `markStatus`) |
+| **Webhooks por timers no processo, depois do commit, sem outbox** (AD-005)            | transactional outbox com worker                           | Simples para o estudo, e a reconexão com `after=<seq>` (F3) recupera mensagens perdidas. Custo: um crash entre o commit e a entrega perde o evento, e entregas pendentes não são retomadas após reiniciar. Detalhes na [seção 15](#15-webhooks-moduleswebhooks)                                                                                                                                                        |
+
+---
+
+## 15. Webhooks (`modules/webhooks/`)
+
+Entrega os eventos do domínio ao `web` (feature F2), que verifica a assinatura e repassa o evento aos navegadores em tempo real (`POST /webhooks/chat`). Os outros módulos só enxergam o `WebhookDispatcher` (único export): a URL de destino (`WEBHOOK_TARGET_URL`) e o segredo (`WEBHOOK_SECRET`) ficam dentro do módulo. O `WebhooksModule` não é registrado no `AppModule`; quem emite eventos o importa (hoje, o `ChatModule`).
+
+| Peça                                     | Arquivo                                  | Papel                                                                                          |
+| ---------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `WebhookDispatcher`                      | `services/webhook-dispatcher.service.ts` | monta o envelope, assina, envia, registra e agenda as retentativas                             |
+| `WebhookHttpClient`                      | `http/webhook-http-client.ts`            | `fetch` com timeout de 5 s. Nunca lança: timeout ou erro de rede vira `status: null` + `error` |
+| `decodeSecret`, `signWebhook`            | `signing/standard-webhooks.ts`           | chave e assinatura no padrão [Standard Webhooks](https://www.standardwebhooks.com/)            |
+| `IWebhookDeliveryRepository`             | `repositories/`                          | grava a entrega e cada tentativa                                                               |
+| `WebhookEventType`, `WebhookEnvelope<T>` | `webhook.types.ts`                       | tipos de evento aceitos e corpo enviado                                                        |
+
+### 15.1 Envelope e assinatura
+
+O corpo é `{ type, occurredAt, data }` (`occurredAt` em ISO 8601), serializado **uma vez**: todas as tentativas assinam e enviam os mesmos bytes. Cada requisição leva `content-type: application/json` e os headers do Standard Webhooks:
+
+| Header              | Valor                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `webhook-id`        | `eventId` (UUID), igual em todas as tentativas. O `web` usa para descartar repetições |
+| `webhook-timestamp` | segundos Unix, novo a cada tentativa                                                  |
+| `webhook-signature` | `v1,` + base64 do HMAC-SHA256 de `<id>.<timestamp>.<corpo>`, nova a cada tentativa    |
+
+A chave do HMAC é o base64 depois do prefixo `whsec_` do `WEBHOOK_SECRET`, que precisa ser igual ao do `web`.
+
+### 15.2 Retentativas e registro
+
+- A 1ª tentativa roda em `setImmediate`, para que a resposta HTTP de quem chamou saia antes.
+- Só `2xx` conta como sucesso. Outro status, timeout ou erro de rede é falha, e a próxima tentativa espera o próximo valor de `RETRY_DELAYS_MS`: **1 s, 5 s, 30 s, 2 min e 10 min**.
+- O `maxAttempts` padrão é `DEFAULT_MAX_ATTEMPTS = 6` (a 1ª tentativa + uma por espera). Pode ser reduzido por chamada: o `typing.started` usa `{ maxAttempts: 1 }`, porque um aviso de digitação atrasado não tem valor.
+- `webhook_deliveries` (model `WebhookDelivery`): uma linha por evento, com `event_id` único, `event_type`, `payload` (o envelope inteiro), `status`, `attempts`, `last_status` e `last_error`. O `status` (enum `WebhookDeliveryStatus`) começa em `PENDING` e termina em `SUCCEEDED` (no `2xx`) ou `FAILED` (ao esgotar o `maxAttempts`).
+- `webhook_delivery_attempts` (model `WebhookDeliveryAttempt`): uma linha por tentativa, com `attempt` (a partir de 1, único por entrega), `status_code` (`null` sem resposta), `duration_ms` e `error`. É apagada em cascata com a entrega.
+- O `recordAttempt` insere a tentativa e atualiza `attempts`, `last_status` e `last_error` numa transação. Depois, o `markStatus` grava o status final.
+- Cada tentativa gera um log `webhook attempt` (`eventId`, `type`, `attempt`, `status`, `durationMs`, `error`): `info` no sucesso, `warn` na falha. Um erro interno (ex.: banco fora) vira o log `webhook delivery error` e nunca chega a quem chamou.
+
+### 15.3 Timers no processo, sem outbox (AD-005)
+
+O evento é disparado **depois do commit**, e as tentativas são timers (`setImmediate`/`setTimeout`) no próprio processo da api. Não há outbox nem worker.
+
+- **Custo:** um crash entre o commit e a entrega perde o evento, e entregas `PENDING` não são retomadas após reiniciar. A reconexão do `web` com `after=<seq>` (F3) recupera as mensagens perdidas. A evolução prevista é um transactional outbox com worker.
+- **Shutdown:** o `WebhookDispatcher` implementa `onApplicationShutdown` (os shutdown hooks estão ativos, ver [seção 4](#4-configuração-global-srcappappsetupts)): cancela todos os timers pendentes e ignora novos agendamentos, para que o `app.close()` dos e2e e o `make dev` não fiquem presos.
+
+### 15.4 Emitindo um evento
+
+O módulo que emite importa o `WebhooksModule`, e o service injeta o `WebhookDispatcher` (ver [5.5](#55-injeção-de-dependência)). A chamada vem **depois** que a escrita foi confirmada, nunca dentro de uma `$transaction`:
+
+```ts
+// messages.service.ts
+const dto = MessageMapper.toResponse(message);
+// After the insert resolved (committed); delivery runs in the background.
+this.webhooks.dispatch('message.created', dto);
+return dto;
+```
+
+- `dispatch(type, data, { maxAttempts }?)` é síncrono, retorna `void` e nunca lança: não use `await` nem `try/catch`.
+- O `data` é o DTO de resposta (o mesmo formato da API), não o model do Prisma.
+- Nos testes do service, registre um mock: `{ provide: WebhookDispatcher, useValue: dispatcher }`.
+
+**Novo tipo de evento:**
+
+1. Acrescente o tipo à união `WebhookEventType` em `webhook.types.ts` (ex.: `'message.deleted'`). O `event_type` do banco é texto, então não há migration.
+2. Chame `dispatch` no service, depois do commit, decidindo o `maxAttempts` (o padrão serve para eventos que não podem se perder).
+3. No `web`, acrescente o tipo ao `webhookEnvelopeSchema` (`features/chat/schemas/webhook-envelope.schema.ts`) e o tratamento no cliente. Sem isso, o `web` responde `400` e a api repete até marcar `FAILED`.
+4. Cubra com specs do service e com um cenário e2e (como o `test/webhooks.e2e-spec.ts`).

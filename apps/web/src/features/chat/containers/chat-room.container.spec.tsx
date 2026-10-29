@@ -42,6 +42,8 @@ function actions() {
       message: makeMessage(),
     })),
     leave: vi.fn(async () => {}),
+    typing: vi.fn(async () => {}),
+    loadOlder: vi.fn(async () => ({ ok: true as const, items: [] })),
   };
 }
 
@@ -86,12 +88,15 @@ describe('ChatRoomContainer', () => {
     expect(opened).toEqual([]);
   });
 
-  it('renderiza o ChatStream com os dados iniciais: abre /chat/stream e aplica os eventos ao vivo (SSE-02 AC8)', async () => {
+  it('renderiza o ChatStream com os dados iniciais: abre /chat/stream?after=<último seq renderizado> e aplica os eventos ao vivo (SSE-02 AC8, RECON-01 AC8)', async () => {
     vi.mocked(getValidSession).mockResolvedValue(validSession());
 
     await renderRoom();
 
-    expect(opened.map((source) => source.url)).toEqual(['/chat/stream']);
+    // makeConversation() ends at seq 6.
+    expect(opened.map((source) => source.url)).toEqual([
+      '/chat/stream?after=6',
+    ]);
     act(() => {
       opened[0]!.emit(
         'message',
@@ -239,5 +244,34 @@ describe('ChatRoomContainer', () => {
 
     expect(props.leave).toHaveBeenCalledOnce();
     expect(props.send).not.toHaveBeenCalled();
+  });
+
+  it('o Composer recebe a action typing da página (TYPE-01 AC1)', async () => {
+    vi.mocked(getValidSession).mockResolvedValue(validSession());
+    const props = await renderRoom();
+
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Mensagem' }),
+      'o',
+    );
+
+    expect(props.typing).toHaveBeenCalledOnce();
+    expect(props.send).not.toHaveBeenCalled();
+  });
+
+  it('"Carregar mensagens anteriores" chama a action loadOlder da página com o menor seq (HIST-01 AC2)', async () => {
+    vi.mocked(getValidSession).mockResolvedValue(validSession());
+    vi.mocked(getMessages).mockResolvedValue(
+      Array.from({ length: 50 }, (_, i) =>
+        makeMessage({ id: `m-${51 + i}`, seq: 51 + i, author: ana }),
+      ),
+    );
+    const props = await renderRoom();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Carregar mensagens anteriores' }),
+    );
+
+    expect(props.loadOlder).toHaveBeenCalledExactlyOnceWith(51);
   });
 });

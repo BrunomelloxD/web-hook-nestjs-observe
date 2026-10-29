@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { server, TEST_API_URL } from '../../../../test/msw/server';
+import { getChatHub } from '../realtime/chat-hub';
 import { leave } from './leave';
 
 vi.mock('next/headers', () => ({ cookies: vi.fn() }));
@@ -86,5 +87,24 @@ describe('leave', () => {
     expect(calls).toEqual([]);
     expect([...jar.keys()]).toEqual(['theme']);
     expect(redirect).toHaveBeenCalledExactlyOnceWith('/');
+  });
+
+  it('cancela a saída agendada do participante antes de chamar a api', async () => {
+    const jar = cookieJar({ chat_session: `${PARTICIPANT_ID}.${TOKEN}` });
+    const cancelAway = vi.spyOn(getChatHub(), 'cancelAway');
+    const cancelledAtRequest: unknown[][] = [];
+    server.use(
+      http.all(`${TEST_API_URL}/*`, () => {
+        cancelledAtRequest.push(...cancelAway.mock.calls);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await expect(leave()).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(cancelledAtRequest).toEqual([[PARTICIPANT_ID]]);
+    expect(cancelAway).toHaveBeenCalledOnce();
+    expect(jar.has('chat_session')).toBe(false);
+    cancelAway.mockRestore();
   });
 });

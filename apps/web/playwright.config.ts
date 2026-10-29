@@ -10,6 +10,8 @@ export default defineConfig({
   // Reason: chat.spec and chat-realtime.spec assert exact online counts, and
   // joins from another file would change them midway.
   workers: 1,
+  // Deletes earlier runs' e2e-web- participants, so the shared room stays bounded.
+  globalSetup: './e2e/global-setup.ts',
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   reporter: isCI ? [['html', { open: 'never' }], ['github']] : 'list',

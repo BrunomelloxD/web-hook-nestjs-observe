@@ -1,23 +1,18 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { chatDictionary as t } from '../chat.dictionary';
-import type {
-  SendMessageAction,
-  SendMessageResult,
-} from '../schemas/message.schema';
-import { makeMessage } from '../test-fixtures';
+import type { MessageInput } from '../schemas/message.schema';
 import { Composer } from './composer.client';
 
 const UUID_V4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const TOO_LONG = 'A mensagem pode ter no máximo 1000 caracteres.';
-const SEND_FAILED = 'Não foi possível enviar a mensagem. Tente de novo.';
+const RATE_LIMITED =
+  'Você está enviando mensagens rápido demais. Aguarde alguns segundos.';
 
-function sendReturning(result: SendMessageResult) {
-  return vi.fn<SendMessageAction>(async () => result);
+function onSend() {
+  return vi.fn<(input: MessageInput) => void>();
 }
-
-const ok: SendMessageResult = { ok: true, message: makeMessage() };
 
 function field() {
   return screen.getByRole('textbox', { name: t.composer.label });
@@ -29,7 +24,7 @@ function sendButton() {
 
 describe('Composer', () => {
   it('tem o campo rotulado com o placeholder e o botão "Enviar"', () => {
-    render(<Composer send={sendReturning(ok)} />);
+    render(<Composer onSend={onSend()} />);
 
     expect(field().tagName).toBe('TEXTAREA');
     expect(field()).toHaveAttribute('placeholder', 'Escreva uma mensagem…');
@@ -37,8 +32,8 @@ describe('Composer', () => {
   });
 
   it('Enter chama a action com { content, clientId } (uuid)', async () => {
-    const send = sendReturning(ok);
-    render(<Composer send={send} />);
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
     await userEvent.type(field(), 'Oi, pessoal!{Enter}');
 
@@ -51,8 +46,8 @@ describe('Composer', () => {
   });
 
   it('o clique em "Enviar" chama a action com o texto digitado', async () => {
-    const send = sendReturning(ok);
-    render(<Composer send={send} />);
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
     await userEvent.type(field(), 'Oi!');
     await userEvent.click(sendButton());
@@ -64,8 +59,8 @@ describe('Composer', () => {
   });
 
   it('cada envio gera um clientId novo', async () => {
-    const send = sendReturning(ok);
-    render(<Composer send={send} />);
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
     await userEvent.type(field(), 'um{Enter}');
     await userEvent.type(field(), 'dois{Enter}');
@@ -76,8 +71,8 @@ describe('Composer', () => {
   });
 
   it('Shift+Enter quebra a linha sem chamar a action', async () => {
-    const send = sendReturning(ok);
-    render(<Composer send={send} />);
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
     await userEvent.type(field(), 'linha 1{Shift>}{Enter}{/Shift}linha 2');
 
@@ -92,8 +87,8 @@ describe('Composer', () => {
   ])(
     'conteúdo %s deixa "Enviar" desabilitado e Enter não envia',
     async (_case, keys) => {
-      const send = sendReturning(ok);
-      render(<Composer send={send} />);
+      const send = onSend();
+      render(<Composer onSend={send} />);
 
       if (keys) await userEvent.type(field(), keys);
       expect(sendButton()).toBeDisabled();
@@ -105,8 +100,8 @@ describe('Composer', () => {
   );
 
   it('1001 caracteres mostra o erro do dicionário, desabilita "Enviar" e Enter não envia', async () => {
-    const send = sendReturning(ok);
-    render(<Composer send={send} />);
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
     await userEvent.click(field());
     await userEvent.paste('a'.repeat(1001));
@@ -119,8 +114,8 @@ describe('Composer', () => {
   });
 
   it('exatamente 1000 caracteres envia sem erro', async () => {
-    const send = sendReturning(ok);
-    render(<Composer send={send} />);
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
     await userEvent.click(field());
     await userEvent.paste('a'.repeat(1000));
@@ -131,79 +126,51 @@ describe('Composer', () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  it('ok: true limpa o campo', async () => {
-    render(<Composer send={sendReturning(ok)} />);
+  it('enviar limpa o campo na hora, sem esperar o servidor (OPT-01 AC1)', async () => {
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
     await userEvent.type(field(), 'olá{Enter}');
 
-    expect(field()).toHaveValue('');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it.each(['invalid', 'unexpected'] as const)(
-    'ok: false (%s) mantém o texto e mostra o erro de envio',
-    async (reason) => {
-      render(<Composer send={sendReturning({ ok: false, reason })} />);
-
-      await userEvent.type(field(), 'olá{Enter}');
-
-      expect(await screen.findByRole('alert')).toHaveTextContent(SEND_FAILED);
-      expect(field()).toHaveValue('olá');
-    },
-  );
-
-  it('o erro de envio sai quando o próximo envio dá certo', async () => {
-    const send = vi
-      .fn<SendMessageAction>()
-      .mockResolvedValueOnce({ ok: false, reason: 'unexpected' })
-      .mockResolvedValueOnce(ok);
-    render(<Composer send={send} />);
-
-    await userEvent.type(field(), 'olá{Enter}');
-    expect(await screen.findByRole('alert')).toHaveTextContent(SEND_FAILED);
-    await userEvent.type(field(), '{Enter}');
-
-    expect(field()).toHaveValue('');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('enquanto envia, "Enviar" fica desabilitado e Enter não envia de novo', async () => {
-    let finish!: (result: SendMessageResult) => void;
-    const send = vi.fn<SendMessageAction>(
-      () => new Promise((resolve) => (finish = resolve)),
-    );
-    render(<Composer send={send} />);
-
-    await userEvent.type(field(), 'olá{Enter}');
-    expect(sendButton()).toBeDisabled();
-    await userEvent.type(field(), '{Enter}');
     expect(send).toHaveBeenCalledOnce();
-
-    finish(ok);
-    expect(
-      await screen.findByRole('button', { name: 'Enviar' }),
-    ).toBeDisabled();
     expect(field()).toHaveValue('');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('o erro aparece acima do campo', async () => {
-    render(
-      <Composer send={sendReturning({ ok: false, reason: 'unexpected' })} />,
-    );
+  it('dá para enviar a próxima logo em seguida', async () => {
+    const send = onSend();
+    render(<Composer onSend={send} />);
 
-    await userEvent.type(field(), 'olá{Enter}');
+    await userEvent.type(field(), 'um{Enter}dois{Enter}');
 
-    const error = await screen.findByRole('alert');
+    expect(send.mock.calls.map(([input]) => input.content)).toEqual([
+      'um',
+      'dois',
+    ]);
+  });
+
+  it('error aparece acima do campo, como alerta (RATE-02 AC4)', () => {
+    render(<Composer onSend={onSend()} error={RATE_LIMITED} />);
+
+    const error = screen.getByRole('alert');
+    expect(error).toHaveTextContent(RATE_LIMITED);
     expect(error).toHaveClass('text-destructive');
     expect(error.compareDocumentPosition(field())).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
   });
 
+  it('com o texto longo demais, o erro de tamanho aparece no lugar de error', async () => {
+    render(<Composer onSend={onSend()} error={RATE_LIMITED} />);
+
+    await userEvent.click(field());
+    await userEvent.paste('a'.repeat(1001));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(TOO_LONG);
+  });
+
   it('notice aparece acima do campo', () => {
-    render(
-      <Composer send={sendReturning(ok)} notice={t.errors.reconnecting} />,
-    );
+    render(<Composer onSend={onSend()} notice={t.errors.reconnecting} />);
 
     const notice = screen.getByText(t.errors.reconnecting);
     expect(notice.compareDocumentPosition(field())).toBe(
@@ -212,9 +179,78 @@ describe('Composer', () => {
   });
 
   it('sem erro e sem notice, nada aparece acima do campo', () => {
-    render(<Composer send={sendReturning(ok)} />);
+    render(<Composer onSend={onSend()} />);
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText(t.errors.reconnecting)).not.toBeInTheDocument();
+  });
+
+  describe('aviso de digitando (TYPE-01 AC1)', () => {
+    const T0 = new Date('2026-10-29T17:00:00.000Z').getTime();
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(T0);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** A keystroke at `ms` after T0 that leaves `value` in the field. */
+    function keyAt(ms: number, value: string) {
+      vi.setSystemTime(T0 + ms);
+      fireEvent.change(field(), { target: { value } });
+    }
+
+    it('várias teclas em 2,9 s → uma chamada; tecla em 3 s → segunda chamada', () => {
+      const onTyping = vi.fn();
+      render(<Composer onSend={onSend()} onTyping={onTyping} />);
+
+      keyAt(0, 'O');
+      keyAt(1_000, 'Oi');
+      keyAt(2_000, 'Oi,');
+      keyAt(2_900, 'Oi, p');
+      expect(onTyping).toHaveBeenCalledTimes(1);
+
+      keyAt(3_000, 'Oi, pe');
+      expect(onTyping).toHaveBeenCalledTimes(2);
+    });
+
+    it('o envio recomeça a janela: tecla em 0, Enter em 1 s, tecla em 1,5 s → duas chamadas (TYPE-01 AC12)', () => {
+      const onTyping = vi.fn();
+      render(<Composer onSend={onSend()} onTyping={onTyping} />);
+
+      keyAt(0, 'oi');
+      vi.setSystemTime(T0 + 1_000);
+      fireEvent.keyDown(field(), { key: 'Enter' });
+      expect(field()).toHaveValue('');
+      keyAt(1_500, 't');
+
+      expect(onTyping).toHaveBeenCalledTimes(2);
+    });
+
+    it('apagar tudo não chama', () => {
+      const onTyping = vi.fn();
+      render(<Composer onSend={onSend()} onTyping={onTyping} />);
+      keyAt(0, 'O');
+
+      keyAt(5_000, '');
+      keyAt(10_000, '   ');
+
+      expect(onTyping).toHaveBeenCalledTimes(1);
+    });
+
+    it('não cria setTimeout nem setInterval', () => {
+      const onTyping = vi.fn();
+      render(<Composer onSend={onSend()} onTyping={onTyping} />);
+
+      keyAt(0, 'O');
+      keyAt(1_000, 'Oi');
+      keyAt(4_000, 'Oi!');
+
+      expect(onTyping).toHaveBeenCalledTimes(2);
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 });

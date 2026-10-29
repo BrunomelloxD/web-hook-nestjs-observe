@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -115,11 +116,11 @@ describe('Webhooks (e2e)', () => {
     return res.body as { id: string; token: string };
   }
 
-  const send = (token: string, content: string, on = app) =>
+  const send = (token: string, content: string, on = app, clientId?: string) =>
     request(on.getHttpServer())
       .post(`${CHAT}/messages`)
       .set('X-Participant-Token', token)
-      .send({ content });
+      .send({ content, clientId });
 
   const deliveryOf = (eventId: string) =>
     prisma.webhookDelivery.findUnique({
@@ -306,6 +307,42 @@ describe('Webhooks (e2e)', () => {
     expect(presence.id).not.toBe(joined.id);
   });
 
+  it('o mesmo clientId duas vezes → dois 201 com o mesmo id, uma linha no banco e uma entrega', async () => {
+    const eli = await join(`${PREFIX}Eli`);
+    const clientId = randomUUID();
+
+    const first = await send(eli.token, 'só uma vez', app, clientId).expect(
+      201,
+    );
+    const second = await send(eli.token, 'só uma vez', app, clientId).expect(
+      201,
+    );
+
+    expect(second.body.id).toBe(first.body.id);
+    expect(second.body).toEqual(first.body);
+    expect(
+      await prisma.message.count({
+        where: { participantId: eli.id, clientId },
+      }),
+    ).toBe(1);
+    await waitFor(() =>
+      received.find((r) => envelope(r).data.id === first.body.id),
+    );
+    // A second dispatch would be scheduled right after its response.
+    await sleep(300);
+    expect(
+      received.filter((r) => envelope(r).data.id === first.body.id),
+    ).toHaveLength(1);
+    expect(
+      await prisma.webhookDelivery.count({
+        where: {
+          eventType: 'message.created',
+          payload: { path: ['data', 'id'], equals: first.body.id },
+        },
+      }),
+    ).toBe(1);
+  });
+
   it('com o servidor desligado, POST /messages responde 201; app.close() cancela a retentativa', async () => {
     const other = await createApp();
     const duda = await join(`${PREFIX}Duda`, other);
@@ -320,7 +357,10 @@ describe('Webhooks (e2e)', () => {
         where: { payload: { path: ['data', 'id'], equals: res.body.id } },
         include: { history: true },
       });
-      return row && row.history.length === 1 ? row : undefined;
+      // The include runs a second query: wait for both sides of the transaction.
+      return row && row.history.length === 1 && row.attempts === 1
+        ? row
+        : undefined;
     });
     expect(delivery).toMatchObject({ status: 'PENDING', attempts: 1 });
     expect(delivery.history[0]).toMatchObject({

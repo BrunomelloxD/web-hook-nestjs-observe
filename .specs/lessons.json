@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 17,
+  "next_id": 29,
   "lessons": [
     {
       "id": "L-001",
@@ -292,6 +292,224 @@
       ],
       "created": "2026-10-15T01:48:46Z",
       "last_seen": "2026-10-15T01:48:46Z"
+    },
+    {
+      "id": "L-017",
+      "key": "spec_precision_gap::when the design adds directives to a header the spec names write the full header value into the spec ac",
+      "text": "When the design adds directives to a header the spec names, write the full header value into the spec AC.",
+      "signal": "spec_precision_gap",
+      "scope": "specs",
+      "status": "candidate",
+      "features": [
+        "chat-webhooks"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md note 1 SSE-01 AC2 apps/web/src/features/chat/realtime/sse.ts:9 (specs)"
+      ],
+      "created": "2026-10-29T14:53:19Z",
+      "last_seen": "2026-10-29T14:53:19Z"
+    },
+    {
+      "id": "L-018",
+      "key": "spec_precision_gap::back build time route properties such as dynamic rendering with an automated check of the build output not a one off log line",
+      "text": "Back build-time route properties such as dynamic rendering with an automated check of the build output, not a one-off log line.",
+      "signal": "spec_precision_gap",
+      "scope": "web-routes",
+      "status": "candidate",
+      "features": [
+        "chat-webhooks"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md note 2 SSE-01 AC7 apps/web/src/features/chat/realtime/open-chat-stream.ts:12 (web-routes)"
+      ],
+      "created": "2026-10-29T14:53:19Z",
+      "last_seen": "2026-10-29T14:53:19Z"
+    },
+    {
+      "id": "L-019",
+      "key": "spec_precision_gap::when an ac lists several endpoints give each endpoint its own e2e assertion of the outcome",
+      "text": "When an AC lists several endpoints, give each endpoint its own e2e assertion of the outcome.",
+      "signal": "spec_precision_gap",
+      "scope": "api-e2e",
+      "status": "candidate",
+      "features": [
+        "chat-webhooks"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md note 3 WHOUT AC3 apps/api/test/webhooks.e2e-spec.ts:172-180 (api-e2e)"
+      ],
+      "created": "2026-10-29T14:53:19Z",
+      "last_seen": "2026-10-29T14:53:19Z"
+    },
+    {
+      "id": "L-020",
+      "key": "spec_precision_gap::cover generated shared secrets in env setup with a scripted check that both env files match and pass the schema",
+      "text": "Cover generated shared secrets in env setup with a scripted check that both env files match and pass the schema.",
+      "signal": "spec_precision_gap",
+      "scope": "infra",
+      "status": "candidate",
+      "features": [
+        "chat-webhooks"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md note 4 WHIN-03 AC9 Makefile:10 (infra)"
+      ],
+      "created": "2026-10-29T14:53:19Z",
+      "last_seen": "2026-10-29T14:53:19Z"
+    },
+    {
+      "id": "L-021",
+      "key": "ac_gap::when an ac is conditioned on a protocol trigger such as a header add an ac and an e2e for the case where the trigger is absent so the goal holds without it",
+      "text": "When an AC is conditioned on a protocol trigger such as a header, add an AC and an E2E for the case where the trigger is absent, so the goal holds without it",
+      "signal": "ac_gap",
+      "scope": "realtime",
+      "status": "candidate",
+      "features": [
+        "chat-resilience"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Gap 1; apps/web/src/features/chat/realtime/open-chat-stream.ts:48 (realtime)"
+      ],
+      "created": "2026-10-29T16:40:55Z",
+      "last_seen": "2026-10-29T16:40:55Z"
+    },
+    {
+      "id": "L-022",
+      "key": "spec_precision_gap::check every success criterion against the limits the same spec introduces before confirming the spec",
+      "text": "Check every success criterion against the limits the same spec introduces before confirming the spec",
+      "signal": "spec_precision_gap",
+      "scope": "spec",
+      "status": "confirmed",
+      "features": [
+        "chat-resilience",
+        "chat-extras"
+      ],
+      "recurrence": 2,
+      "harmful": 0,
+      "evidence": [
+        "spec.md Success Criteria '100 envios seguidos' vs RATE-01 AC1 (spec)",
+        "spec.md Goal 1 '<1 s depois da primeira tecla' vs TYPE-01 AC1/AC4 throttles; composer.client.tsx:55 (validation.md Gap 1) (spec)"
+      ],
+      "created": "2026-10-29T16:40:55Z",
+      "last_seen": "2026-10-29T18:10:33Z"
+    },
+    {
+      "id": "L-023",
+      "key": "spec_deviation::an e2e must not add setup steps that the success criterion does not state since they can hide the uncovered case",
+      "text": "An E2E must not add setup steps that the success criterion does not state, since they can hide the uncovered case",
+      "signal": "spec_deviation",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "chat-resilience"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "apps/web/e2e/chat-resilience.spec.ts:145-149 pre-seeded SSE message (e2e)"
+      ],
+      "created": "2026-10-29T16:40:55Z",
+      "last_seen": "2026-10-29T16:40:55Z"
+    },
+    {
+      "id": "L-024",
+      "key": "surviving_mutant::when a spec edit adds a condition to an ac add a test for that condition in the same change",
+      "text": "When a spec edit adds a condition to an AC, add a test for that condition in the same change",
+      "signal": "surviving_mutant",
+      "scope": "spec-tests",
+      "status": "candidate",
+      "features": [
+        "chat-resilience"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N9; apps/web/src/features/chat/components/chat-stream.client.tsx:66; RATE-02 AC4 (spec-tests)"
+      ],
+      "created": "2026-10-29T17:11:41Z",
+      "last_seen": "2026-10-29T17:11:41Z"
+    },
+    {
+      "id": "L-025",
+      "key": "gate_fail::when polling a row with included relations after a transactional write wait on the parent s updated fields too since include runs separate queries that can straddle the commit",
+      "text": "When polling a row with included relations after a transactional write, wait on the parent's updated fields too, since include runs separate queries that can straddle the commit",
+      "signal": "gate_fail",
+      "scope": "api-e2e",
+      "status": "candidate",
+      "features": [
+        "chat-resilience"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Gate run 1; apps/api/test/webhooks.e2e-spec.ts:355-362 (api-e2e)"
+      ],
+      "created": "2026-10-29T17:19:09Z",
+      "last_seen": "2026-10-29T17:19:09Z"
+    },
+    {
+      "id": "L-026",
+      "key": "ac_gap::catch the rejection of every fire and forget server action call on the client since the transport can fail even when the action swallows its own errors",
+      "text": "Catch the rejection of every fire-and-forget Server Action call on the client, since the transport can fail even when the action swallows its own errors",
+      "signal": "ac_gap",
+      "scope": "web-client",
+      "status": "candidate",
+      "features": [
+        "chat-extras"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Gap 2; apps/web/src/features/chat/components/chat-stream.client.tsx:175 (web-client)"
+      ],
+      "created": "2026-10-29T18:10:33Z",
+      "last_seen": "2026-10-29T18:10:33Z"
+    },
+    {
+      "id": "L-027",
+      "key": "spec_deviation::an e2e that pages through shared data must keep that data bounded or its runtime grows with every run",
+      "text": "An E2E that pages through shared data must keep that data bounded, or its runtime grows with every run",
+      "signal": "spec_deviation",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "chat-extras"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md Gap 3; apps/web/e2e/chat-extras.spec.ts:153-194 (e2e)"
+      ],
+      "created": "2026-10-29T18:10:33Z",
+      "last_seen": "2026-10-29T18:10:33Z"
+    },
+    {
+      "id": "L-028",
+      "key": "surviving_mutant::when an e2e relies on a setup step to bound its data assert the bound itself size or count not only a formula derived from the current data",
+      "text": "When an E2E relies on a setup step to bound its data, assert the bound itself (size or count), not only a formula derived from the current data",
+      "signal": "surviving_mutant",
+      "scope": "e2e",
+      "status": "candidate",
+      "features": [
+        "chat-extras"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M9 apps/web/e2e/global-setup.ts:7 (e2e)"
+      ],
+      "created": "2026-10-29T19:12:48Z",
+      "last_seen": "2026-10-29T19:12:48Z"
     }
   ]
 }

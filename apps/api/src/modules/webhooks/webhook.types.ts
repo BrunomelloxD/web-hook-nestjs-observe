@@ -1,4 +1,5 @@
-export type WebhookEventType = 'message.created' | 'presence.changed';
+export type WebhookEventType =
+  'message.created' | 'presence.changed' | 'typing.started';
 
 /** Body of every webhook; serialized once and signed as is. */
 export interface WebhookEnvelope<T> {

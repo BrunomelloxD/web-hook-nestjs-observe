@@ -14,6 +14,12 @@ const presenceChanged = {
   occurredAt: OCCURRED_AT,
   data: { online: 3 },
 };
+const ANA_ID = '550e8400-e29b-41d4-a716-446655440000';
+const typingStarted = {
+  type: 'typing.started',
+  occurredAt: OCCURRED_AT,
+  data: { participant: { id: ANA_ID, name: 'Ana' } },
+};
 
 function withData(data: Record<string, unknown>) {
   return { ...messageCreated, data: { ...message, ...data } };
@@ -58,9 +64,18 @@ describe('webhookEnvelopeSchema', () => {
     });
   });
 
+  it('aceita typing.started com { participant: { id, name } }', () => {
+    expect(webhookEnvelopeSchema.parse(typingStarted)).toEqual({
+      type: 'typing.started',
+      occurredAt: OCCURRED_AT,
+      data: { participant: { id: ANA_ID, name: 'Ana' } },
+    });
+  });
+
   describe('recusa', () => {
     it.each([
-      ['tipo desconhecido', { ...presenceChanged, type: 'typing.started' }],
+      // typing.started became a known type in F4; a stop event is not one.
+      ['tipo desconhecido', { ...presenceChanged, type: 'typing.stopped' }],
       ['sem type', { occurredAt: OCCURRED_AT, data: { online: 3 } }],
       ['occurredAt ausente', { type: 'presence.changed', data: { online: 3 } }],
       [
@@ -89,6 +104,18 @@ describe('webhookEnvelopeSchema', () => {
       ['clientId numérico', withData({ clientId: 1 })],
       ['author sem name', withData({ author: { id: message.author.id } })],
       ['createdAt que não é data ISO', withData({ createdAt: 'agora' })],
+      [
+        'typing.started com participant.id que não é uuid',
+        {
+          ...typingStarted,
+          data: { participant: { id: 'ana', name: 'Ana' } },
+        },
+      ],
+      [
+        'typing.started sem participant.name',
+        { ...typingStarted, data: { participant: { id: ANA_ID } } },
+      ],
+      ['typing.started sem participant', { ...typingStarted, data: {} }],
       ['corpo que não é objeto', 'message.created'],
     ])('%s', (_, body) => {
       expect(webhookEnvelopeSchema.safeParse(body).success).toBe(false);

@@ -47,7 +47,7 @@ beforeEach(() => {
     write: (chunk) => {
       chunks.push(chunk);
     },
-  });
+  }).unsubscribe;
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   networkRequests = [];
   server.events.on('request:start', ({ request }) => {
@@ -85,6 +85,26 @@ describe('handleChatWebhook: webhook válido e novo', () => {
 
     expect(response.status).toBe(204);
     expect(chunks).toEqual(['event: presence\ndata: {"online":2}\n\n']);
+  });
+
+  it('typing.started → 204 e o hub escreve event: typing com o data, sem id:', async () => {
+    const data = {
+      participant: { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Ana' },
+    };
+    const body = JSON.stringify({
+      type: 'typing.started',
+      occurredAt: '2026-10-15T12:00:00.000Z',
+      data,
+    });
+
+    const response = await handleChatWebhook(
+      webhookRequest(body, signed(body)),
+    );
+
+    expect(response.status).toBe(204);
+    expect(chunks).toEqual([
+      `event: typing\ndata: ${JSON.stringify(data)}\n\n`,
+    ]);
   });
 
   it('verifica os bytes crus: JSON com espaços fora do formato do JSON.stringify passa', async () => {
@@ -195,8 +215,9 @@ describe('handleChatWebhook: fora do envelope → 400, sem publicar', () => {
     ['corpo que não é JSON', 'não é json'],
     [
       'tipo desconhecido',
+      // typing.started became a known type in F4; a stop event is not one.
       JSON.stringify({
-        type: 'typing.started',
+        type: 'typing.stopped',
         occurredAt: '2026-10-15T12:00:00.000Z',
         data: {},
       }),

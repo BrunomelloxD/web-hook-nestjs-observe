@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import type { LoadOlderMessagesAction } from '../chat.types';
 import { ChatStream } from '../components/chat-stream.client';
 import { getMessages } from '../queries/get-messages';
 import type { SendMessageAction } from '../schemas/message.schema';
@@ -6,7 +7,12 @@ import { getValidSession } from '../session/get-valid-session';
 
 export type ChatRoomContainerProps = {
   /** Server Actions from the page, passed down to the client components. */
-  actions: { send: SendMessageAction; leave: () => Promise<void> };
+  actions: {
+    send: SendMessageAction;
+    leave: () => Promise<void>;
+    typing: () => Promise<void>;
+    loadOlder: LoadOlderMessagesAction;
+  };
 };
 
 /** Must be rendered inside <Suspense>. */

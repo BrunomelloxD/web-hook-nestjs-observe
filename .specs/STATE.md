@@ -58,9 +58,12 @@
 
 ## Handoff
 
-- **Feature**: `chat-core` (F1), all tasks done (T1-T38, T34a). Phase 7 closed with `make e2e` (11 passed) and `TURBO_FORCE=true make gate` exit 0 (19/19; web 366 unit tests at 100%, 118 story tests; api 205 at 100%).
-- **Next step**: feature-level validation (Verifier sub-agent) for `chat-core`.
-- **Deviations in phase 7**: `proxy.ts` imports from `features/chat/routing.ts` (new proxy-safe entry) instead of `index.ts`; `SESSION_COOKIE` moved to `session/route-by-session.ts` and is re-exported by `session-cookie.ts`. See the T37 note.
+- **Status**: all PRD phases delivered and validated: F0 `chat-theme`, F1 `chat-core`, F2 `chat-webhooks`, F3 `chat-resilience` (PASS on iteration 3), F4 `chat-extras` (PASS on iteration 2). Each feature has a PASS `validation.md`.
+- **Last check (2026-10-29)**: `TURBO_FORCE=true make gate` exit 0 (19/19) and `make e2e` 21 passed, on `next` 16.4.3 (upgraded from 16.4.0 for GHSA-p3m5-59mp-jv5r, GHSA-673q-mjm6-r5xr, GHSA-2464-fhr4-w9xw) and after the audit fixes (`body-parser` 2.4.0, `qs` 6.17.1, `fast-uri` 3.1.9, `@nestjs/*` 12.3.2 for `multer`, prisma 7.10.1, vitest 4.1.12, `undici`, `systeminformation`, `mysql2`).
+- **User decisions (2026-10-29)**: the user confirmed the F3 SPEC_DEVIATIONs that changed older tests (api e2e "61 envios" as 13 × 5; web e2e p95 spacing and 60 messages as 12 × 5; F1 composer tests replaced by OPT-01). F0 T22 is done: the FigCraft Tema collection matches `globals.css`.
+- **Pending (out of scope)**:
+  - `npm audit` still reports 4 findings (`zod` and `deepmerge` via `shadcn`); the npm fix needs `--force` (`shadcn` 4.21.5 → 4.23.0) and the user chose to leave them.
+  - Dev only: the `globalThis` ChatHub survives HMR, so a change to the hub needs `docker compose restart web`.
+  - D2: messages are kept forever.
 - **Blockers**: none.
-- **Pending (out of scope)**: `apps/web/src/lib/search-params.ts` (+ spec) has no callers; the root `ARCHITECTURE.md` still cites `examples` (lines 77, 106, 142-143); `apps/web/ARCHITECTURE.md` still describes `examples` as the reference feature; E2E messages stay in the database (no delete endpoint, D2).
-- **Uncommitted files**: no git in this project.
+- **Branch**: `main`, local commits only (nothing pushed).

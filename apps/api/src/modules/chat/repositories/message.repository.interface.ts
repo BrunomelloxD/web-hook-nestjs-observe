@@ -26,5 +26,9 @@ export abstract class IMessageRepository {
   abstract findPage(
     params: FindMessagePageParams,
   ): Promise<MessageWithAuthor[]>;
+  abstract findByClientId(
+    participantId: string,
+    clientId: string,
+  ): Promise<MessageWithAuthor | null>;
   abstract create(data: CreateMessageData): Promise<MessageWithAuthor>;
 }

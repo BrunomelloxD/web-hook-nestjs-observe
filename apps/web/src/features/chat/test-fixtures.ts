@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatParticipant } from './chat.types';
+import type { ChatItem } from './state/chat-room.reducer';
 
 /** Shared by tests and stories. */
 export function makeParticipant(
@@ -57,4 +58,9 @@ export function makeConversation(): ChatMessage[] {
       createdAt: `2026-10-14T${time}:00.000Z`,
     }),
   );
+}
+
+/** Confirmed list items, as MessageList takes them. */
+export function asItems(messages: ChatMessage[]): ChatItem[] {
+  return messages.map((message) => ({ kind: 'confirmed', message }));
 }

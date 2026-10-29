@@ -9,7 +9,9 @@ const BIG = 3_000_000_000n;
 
 describe('MessageRepository', () => {
   let repository: MessageRepository;
-  const prisma = { message: { findMany: vi.fn(), create: vi.fn() } };
+  const prisma = {
+    message: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -96,5 +98,40 @@ describe('MessageRepository', () => {
       include: author,
     });
     expect(result).toBe(created);
+  });
+
+  describe('findByClientId', () => {
+    const PARTICIPANT_ID = '7d9f1e2a-4b3c-4d5e-9f60-1a2b3c4d5e6f';
+    const CLIENT_ID = '0b8f7c6d-5e4a-4b3c-9d2e-1f0a9b8c7d6e';
+
+    it('busca pela chave composta (participantId, clientId), incluindo o autor', async () => {
+      const found = makeMessage({
+        clientId: CLIENT_ID,
+        participantId: PARTICIPANT_ID,
+        participant: { id: PARTICIPANT_ID, name: 'Bia' },
+      });
+      prisma.message.findUnique.mockResolvedValue(found);
+
+      const result = await repository.findByClientId(PARTICIPANT_ID, CLIENT_ID);
+
+      expect(prisma.message.findUnique).toHaveBeenCalledWith({
+        where: {
+          participantId_clientId: {
+            participantId: PARTICIPANT_ID,
+            clientId: CLIENT_ID,
+          },
+        },
+        include: author,
+      });
+      expect(result).toBe(found);
+    });
+
+    it('devolve null quando o par não existe', async () => {
+      prisma.message.findUnique.mockResolvedValue(null);
+
+      await expect(
+        repository.findByClientId(PARTICIPANT_ID, CLIENT_ID),
+      ).resolves.toBeNull();
+    });
   });
 });

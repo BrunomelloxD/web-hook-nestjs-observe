@@ -74,7 +74,7 @@ packages/api-client
    │  createApiClient({ baseUrl })      → client tipado                (openapi-fetch)
    ▼
 apps/web
-   getApi().GET('/api/v1/examples', { params: { query: { page } } })   → tipado como o DTO
+   getApi().GET('/api/v1/chat/messages', { params: { query: { limit } } })   → tipado como o DTO
 ```
 
 - `npm run generate` (na raiz) roda a cadeia inteira: build da api → export → tipos.
@@ -103,7 +103,7 @@ Vale para **todo o monorepo**: api, web, pacotes e arquivos de configuração (`
 ```ts
 // ❌ Repete o código (e em português)
 // Converte o model do Prisma no DTO de resposta
-static toResponse(example: Example): ExampleResponseDto { ... }
+static toResponse(message: MessageWithAuthor): MessageResponseDto { ... }
 
 // ❌ Longo demais: isso é documentação, não comentário
 /**
@@ -138,9 +138,9 @@ Antes de escrever algo novo, procure se já existe. Quando algo for compartilhad
 | --------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | Entre apps (api, web) e pacotes               | `packages/*`                                       | `@repo/api-client`, `@repo/tsconfig`, `@repo/vitest-config`                                                  |
 | Entre módulos da api                          | `apps/api/src/common/`                             | `IBaseRepository`, `PaginationDto`, `PaginatedResponseDto`, `PrismaExceptionFilter`, `@ApiPaginatedResponse` |
-| Entre features do web                         | `apps/web/src/components/ui/`, `apps/web/src/lib/` | `PaginationNav`, `Button`, `getApi()`, `parsePageParam()`                                                    |
-| Dentro de um módulo/feature                   | a própria pasta do módulo/feature                  | `ExampleMapper`, `example.dictionary.ts`                                                                     |
-| Entre testes (e stories) de um módulo/feature | `test-fixtures.ts` na raiz do módulo/feature       | `makeExample()` (api e web), `makeMeta()` (web)                                                              |
+| Entre features do web                         | `apps/web/src/components/ui/`, `apps/web/src/lib/` | `PaginationNav`, `Button`, `getApi()`, `formatTime()`                                                        |
+| Dentro de um módulo/feature                   | a própria pasta do módulo/feature                  | `MessageMapper`, `chat.dictionary.ts`                                                                        |
+| Entre testes (e stories) de um módulo/feature | `test-fixtures.ts` na raiz do módulo/feature       | `makeParticipant()` e `makeMessage()` (api e web), `makeConversation()` (web)                                |
 | Configuração de ferramentas                   | arquivo base na raiz + `extends`, ou pacote        | `.oxlintrc.json` da raiz, `@repo/tsconfig`, `@repo/vitest-config`                                            |
 
 ### 6.2 Quando extrair
@@ -232,11 +232,11 @@ A ordem de subida é: `database` (saudável) → `migrate` (concluído) → `api
 
 **Variáveis:**
 
-| Arquivo         | Conteúdo                                               |
-| --------------- | ------------------------------------------------------ |
-| `.env` (raiz)   | `POSTGRES_*`, portas (`WEB_PORT`, `API_PORT`, ...)     |
-| `apps/api/.env` | variáveis da api; `DATABASE_URL` sempre em `localhost` |
-| `apps/web/.env` | `API_URL` sempre em `localhost`                        |
+| Arquivo         | Conteúdo                                                          |
+| --------------- | ----------------------------------------------------------------- |
+| `.env` (raiz)   | `POSTGRES_*`, portas (`WEB_PORT`, `API_PORT`, ...)                |
+| `apps/api/.env` | variáveis da api; `DATABASE_URL` sempre em `localhost`            |
+| `apps/web/.env` | `API_URL` sempre em `localhost`; `WEBHOOK_SECRET` igual ao da api |
 
 No Compose, as URLs entre containers (`DATABASE_URL` → `database`, `API_URL` → `api`) são montadas automaticamente. Por isso os `.env` dos apps servem tanto para rodar no Docker quanto fora dele.
 

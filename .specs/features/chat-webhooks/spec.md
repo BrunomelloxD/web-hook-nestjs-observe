@@ -135,18 +135,18 @@ Na F1, as mensagens dos outros só aparecem ao recarregar. O objetivo do estudo 
 
 ## Requirement Traceability
 
-| Requirement ID | Story                  | Tasks              | Phase   | Status      |
-| -------------- | ---------------------- | ------------------ | ------- | ----------- |
-| WHOUT-01       | P1: Emissor (AC 1-3)   | T6, T7, T8, T9     | Execute | Implemented |
-| WHOUT-02       | P1: Emissor (AC 4-6)   | T3, T4, T6, T9     | Execute | Implemented |
-| WHOUT-03       | P1: Emissor (AC 7-11)  | T2, T4, T5, T6, T9 | Execute | Implemented |
-| WHOUT-04       | P1: Emissor (AC 12-13) | T1, T7             | Execute | Implemented |
-| WHIN-01        | P1: Receptor (AC 1-4)  | T13, T15, T18      | Execute | Implemented |
-| WHIN-02        | P1: Receptor (AC 5-7)  | T14, T18, T25      | Tasks   | In Tasks    |
-| WHIN-03        | P1: Receptor (AC 8-9)  | T10, T11, T12      | Tasks   | In Tasks    |
-| SSE-01         | P1: SSE (AC 1-7)       | T16, T17, T19, T25 | Tasks   | In Tasks    |
-| SSE-02         | P1: SSE (AC 8-11)      | T20, T22, T23, T25 | Tasks   | In Tasks    |
-| SSE-03         | P1: SSE (AC 12-13)     | T21, T24, T25      | Tasks   | In Tasks    |
+| Requirement ID | Story                  | Tasks              | Phase   | Status   |
+| -------------- | ---------------------- | ------------------ | ------- | -------- |
+| WHOUT-01       | P1: Emissor (AC 1-3)   | T6, T7, T8, T9     | Execute | Verified |
+| WHOUT-02       | P1: Emissor (AC 4-6)   | T3, T4, T6, T9     | Execute | Verified |
+| WHOUT-03       | P1: Emissor (AC 7-11)  | T2, T4, T5, T6, T9 | Execute | Verified |
+| WHOUT-04       | P1: Emissor (AC 12-13) | T1, T7             | Execute | Verified |
+| WHIN-01        | P1: Receptor (AC 1-4)  | T13, T15, T18      | Execute | Verified |
+| WHIN-02        | P1: Receptor (AC 5-7)  | T14, T18, T25      | Execute | Verified |
+| WHIN-03        | P1: Receptor (AC 8-9)  | T10, T11, T12      | Execute | Verified |
+| SSE-01         | P1: SSE (AC 1-7)       | T16, T17, T19, T25 | Execute | Verified |
+| SSE-02         | P1: SSE (AC 8-11)      | T20, T22, T23, T25 | Execute | Verified |
+| SSE-03         | P1: SSE (AC 12-13)     | T21, T24, T25      | Execute | Verified |
 
 **Coverage:** 10 total, 10 mapped to tasks, 0 unmapped ✅
 
@@ -154,7 +154,7 @@ Na F1, as mensagens dos outros só aparecem ao recarregar. O objetivo do estudo 
 
 ## Success Criteria
 
-- [ ] p95 < 1 s entre o envio em A e a exibição em B, medido no E2E local com 20 mensagens
-- [ ] A aba Network do navegador mostra uma única conexão `/chat/stream` e nenhuma requisição periódica
-- [ ] `webhook_delivery_attempts` mostra o histórico de cada entrega, incluindo as que viraram `FAILED`
-- [ ] `make gate` e `make e2e` verdes, com `next build` sem pré-renderizar `/chat/stream`
+- [x] p95 < 1 s entre o envio em A e a exibição em B, medido no E2E local com 20 mensagens
+- [x] A aba Network do navegador mostra uma única conexão `/chat/stream` e nenhuma requisição periódica (provado em `apps/web/e2e/chat-realtime.spec.ts:196`, que grava as requisições do navegador por 30 s)
+- [x] `webhook_delivery_attempts` mostra o histórico de cada entrega, incluindo as que viraram `FAILED`
+- [x] `make gate` e `make e2e` verdes, com `next build` sem pré-renderizar `/chat/stream`

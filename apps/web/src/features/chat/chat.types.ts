@@ -9,3 +9,11 @@ export type ChatMessage = Schemas['MessageResponseDto'];
 export type OnlineParticipant = Schemas['OnlineParticipantDto'];
 
 export type OnlineParticipants = Schemas['OnlineParticipantsResponseDto'];
+
+export type LoadOlderMessagesResult =
+  { ok: true; items: ChatMessage[] } | { ok: false };
+
+/** The `loadOlderMessages` Server Action, as client components take it. */
+export type LoadOlderMessagesAction = (
+  before: number,
+) => Promise<LoadOlderMessagesResult>;

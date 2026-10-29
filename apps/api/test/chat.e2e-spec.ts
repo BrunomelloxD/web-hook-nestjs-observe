@@ -17,6 +17,7 @@ const SHORT_NAME = 'Q9';
 const EXPANDING_NAME = 'İ'.repeat(20);
 const CHAT = '/api/v1/chat';
 const TOKEN_HEADER = 'X-Participant-Token';
+const SEND_LIMIT = 5;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -422,6 +423,69 @@ describe('Chat (e2e)', () => {
     });
   });
 
+  describe('POST /chat/messages: limite de envio (RATE-01)', () => {
+    it('5 envios passam; o 6º → 429 com Retry-After inteiro, sem gravar', async () => {
+      const rex = await join(`${PREFIX}Rex`);
+      for (let i = 1; i <= SEND_LIMIT; i++) {
+        await send(rex.token, { content: `l${i}` }).expect(201);
+      }
+
+      const res = await send(rex.token, { content: 'l6' });
+
+      expect(res.status).toBe(429);
+      expect(res.headers['retry-after']).toMatch(/^\d+$/);
+      expect(Number(res.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+      expect(Number(res.headers['retry-after'])).toBeLessThanOrEqual(10);
+      expect(res.body).toEqual({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message:
+          'Você está enviando mensagens rápido demais. Aguarde alguns segundos.',
+      });
+      expect(
+        await prisma.message.count({
+          where: { participantId: rex.id, type: 'USER' },
+        }),
+      ).toBe(SEND_LIMIT);
+    });
+
+    it('o limite é por participante: com um no limite, outro envia normalmente', async () => {
+      const full = await join(`${PREFIX}Teo`);
+      const other = await join(`${PREFIX}Lia`);
+      for (let i = 1; i <= SEND_LIMIT; i++) {
+        await send(full.token, { content: `p${i}` }).expect(201);
+      }
+      await send(full.token, { content: 'p6' }).expect(429);
+
+      const res = await send(other.token, { content: 'livre' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.author).toEqual({ id: other.id, name: 'e2e-api-Lia' });
+    });
+
+    it('um reenvio com clientId já gravado passa mesmo com o limite estourado', async () => {
+      const noa = await join(`${PREFIX}Noa`);
+      const clientId = randomUUID();
+      const first = await send(noa.token, { content: 'u1', clientId }).expect(
+        201,
+      );
+      for (let i = 2; i <= SEND_LIMIT; i++) {
+        await send(noa.token, { content: `u${i}` }).expect(201);
+      }
+      await send(noa.token, { content: 'u6' }).expect(429);
+
+      const retry = await send(noa.token, { content: 'u1', clientId });
+
+      expect(retry.status).toBe(201);
+      expect(retry.body).toEqual(first.body);
+      expect(
+        await prisma.message.count({
+          where: { participantId: noa.id, type: 'USER' },
+        }),
+      ).toBe(SEND_LIMIT);
+    });
+  });
+
   describe('POST /chat/participants/:id/leave', () => {
     let duda: Joined;
     let eva: Joined;
@@ -501,10 +565,17 @@ describe('Chat (e2e)', () => {
   describe('rate limit (AD-004)', () => {
     const CALLS = 61;
 
-    it(`${CALLS} envios seguidos não recebem 429; sem limit, GET /messages devolve as 50 últimas`, async () => {
-      const sender = await join(`${PREFIX}Rui`);
+    it(`${CALLS} envios seguidos do mesmo IP não recebem 429; sem limit, GET /messages devolve as 50 últimas`, async () => {
+      // SPEC_DEVIATION: the sends now come from 13 participants, 5 each.
+      // Reason: RATE-01 (F3) caps one participant at 5 per 10 s; the IP-level
+      // claim of AD-004 is unchanged: all 61 POSTs come from the same client.
+      const senders: Joined[] = [];
+      for (let i = 0; i < Math.ceil(CALLS / SEND_LIMIT); i++) {
+        senders.push(await join(`${PREFIX}Rui${i}`));
+      }
       const statuses: number[] = [];
       for (let i = 1; i <= CALLS; i++) {
+        const sender = senders[Math.floor((i - 1) / SEND_LIMIT)];
         statuses.push((await send(sender.token, { content: `r${i}` })).status);
       }
 

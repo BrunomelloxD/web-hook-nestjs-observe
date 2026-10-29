@@ -1,6 +1,8 @@
 // Server-side public API of the feature (what app/ may import).
 export { join } from './actions/join';
 export { leave } from './actions/leave';
+export { loadOlderMessages } from './actions/load-older-messages';
+export { notifyTyping } from './actions/notify-typing';
 export { sendMessage } from './actions/send-message';
 export { chatDictionary } from './chat.dictionary';
 export { JoinForm } from './components/join-form.client';

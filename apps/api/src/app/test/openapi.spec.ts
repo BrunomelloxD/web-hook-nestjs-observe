@@ -92,10 +92,22 @@ describe('OpenAPI export', () => {
       );
 
       const send = paths['/api/v1/chat/messages'].post;
-      expect(Object.keys(send.responses).sort()).toEqual(['201', '400', '401']);
+      expect(Object.keys(send.responses).sort()).toEqual([
+        '201',
+        '400',
+        '401',
+        '429',
+      ]);
       expect(bodyRef(send, '201')).toBe(
         '#/components/schemas/MessageResponseDto',
       );
+      expect(
+        (
+          send.responses['429'] as {
+            headers?: Record<string, { schema: { type: string } }>;
+          }
+        ).headers?.['Retry-After'].schema,
+      ).toEqual({ type: 'integer' });
     });
 
     it('MessageResponseDto tem seq numérico, type enum e clientId nullable', () => {

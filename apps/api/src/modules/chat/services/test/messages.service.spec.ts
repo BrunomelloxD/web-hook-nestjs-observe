@@ -1,32 +1,59 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Mocked } from 'vitest';
+import { Prisma } from '@/generated/prisma/client.js';
 import { WebhookDispatcher } from '@/modules/webhooks/services/webhook-dispatcher.service.js';
+import { RateLimitedException } from '../../filters/rate-limited-exception.filter.js';
 import { IMessageRepository } from '../../repositories/message.repository.interface.js';
 import { makeMessage, makeParticipant } from '../../test-fixtures.js';
 import { MessagesService } from '../messages.service.js';
+import { SendRateLimiter } from '../send-rate-limiter.js';
+import { TypingService } from '../typing.service.js';
 
 const BIA_ID = '7d9f1e2a-4b3c-4d5e-9f60-1a2b3c4d5e6f';
 const CLIENT_ID = '0b8f7c6d-5e4a-4b3c-9d2e-1f0a9b8c7d6e';
+const NOW = 1_791_979_200_000;
+
+function prismaError(code: string) {
+  return new Prisma.PrismaClientKnownRequestError('erro', {
+    code,
+    clientVersion: 'test',
+  });
+}
 
 describe('MessagesService', () => {
   let service: MessagesService;
   let repository: Mocked<IMessageRepository>;
   let dispatcher: { dispatch: ReturnType<typeof vi.fn> };
+  let limiter: { tryAcquire: ReturnType<typeof vi.fn> };
+  let typing: TypingService;
+
+  /** typing.started dispatches so far (the real TypingService on the dispatcher mock). */
+  const typingDispatches = () =>
+    dispatcher.dispatch.mock.calls.filter(([type]) => type === 'typing.started')
+      .length;
 
   beforeEach(async () => {
-    repository = { findPage: vi.fn(), create: vi.fn() };
+    repository = {
+      findPage: vi.fn(),
+      findByClientId: vi.fn(),
+      create: vi.fn(),
+    };
     dispatcher = { dispatch: vi.fn() };
+    limiter = { tryAcquire: vi.fn().mockReturnValue({ ok: true }) };
 
     const module = await Test.createTestingModule({
       providers: [
         MessagesService,
         { provide: IMessageRepository, useValue: repository },
         { provide: WebhookDispatcher, useValue: dispatcher },
+        { provide: SendRateLimiter, useValue: limiter },
+        TypingService,
       ],
     }).compile();
 
     service = module.get(MessagesService);
+    typing = module.get(TypingService);
   });
 
   describe('list', () => {
@@ -190,6 +217,209 @@ describe('MessagesService', () => {
 
       await expect(service.send(bia, { content: 'oi' })).rejects.toBe(failure);
       expect(dispatcher.dispatch).not.toHaveBeenCalled();
+    });
+
+    describe('idempotência e limite', () => {
+      const stored = makeMessage({
+        id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+        seq: 1041n,
+        content: 'olá',
+        clientId: CLIENT_ID,
+        participantId: BIA_ID,
+        participant: { id: BIA_ID, name: 'Bia' },
+        createdAt: new Date('2026-10-14T12:00:02.000Z'),
+      });
+      const storedDto = {
+        id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+        seq: 1041,
+        type: 'USER',
+        content: 'olá',
+        clientId: CLIENT_ID,
+        author: { id: BIA_ID, name: 'Bia' },
+        createdAt: '2026-10-14T12:00:02.000Z',
+      };
+
+      beforeEach(() => {
+        vi.spyOn(Date, 'now').mockReturnValue(NOW);
+      });
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it('reenvio com clientId já gravado devolve a existente, sem limiter, create nem dispatch', async () => {
+        repository.findByClientId.mockResolvedValue(stored);
+
+        const result = await service.send(bia, {
+          content: 'olá',
+          clientId: CLIENT_ID,
+        });
+
+        expect(repository.findByClientId).toHaveBeenCalledWith(
+          BIA_ID,
+          CLIENT_ID,
+        );
+        expect(result).toEqual(storedDto);
+        expect(limiter.tryAcquire).not.toHaveBeenCalled();
+        expect(repository.create).not.toHaveBeenCalled();
+        expect(dispatcher.dispatch).not.toHaveBeenCalled();
+      });
+
+      it('clientId novo: consulta o limiter com o id do ator e o relógio, grava e dispara', async () => {
+        repository.findByClientId.mockResolvedValue(null);
+        repository.create.mockResolvedValue(stored);
+
+        const result = await service.send(bia, {
+          content: 'olá',
+          clientId: CLIENT_ID,
+        });
+
+        expect(limiter.tryAcquire).toHaveBeenCalledWith(BIA_ID, NOW);
+        expect(repository.create).toHaveBeenCalledTimes(1);
+        expect(result).toEqual(storedDto);
+        expect(dispatcher.dispatch).toHaveBeenCalledWith(
+          'message.created',
+          storedDto,
+        );
+      });
+
+      it('limiter recusa → RateLimitedException com retryAfterSeconds, sem create nem dispatch', async () => {
+        repository.findByClientId.mockResolvedValue(null);
+        limiter.tryAcquire.mockReturnValue({ ok: false, retryAfterSeconds: 4 });
+
+        const error = await service
+          .send(bia, { content: 'olá', clientId: CLIENT_ID })
+          .catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(RateLimitedException);
+        expect((error as RateLimitedException).getStatus()).toBe(429);
+        expect((error as RateLimitedException).retryAfterSeconds).toBe(4);
+        expect(repository.create).not.toHaveBeenCalled();
+        expect(dispatcher.dispatch).not.toHaveBeenCalled();
+      });
+
+      it('P2002 em create (corrida entre reenvios) → busca pelo clientId e devolve a existente, sem dispatch', async () => {
+        repository.findByClientId
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(stored);
+        repository.create.mockRejectedValue(prismaError('P2002'));
+
+        const result = await service.send(bia, {
+          content: 'olá',
+          clientId: CLIENT_ID,
+        });
+
+        expect(repository.findByClientId).toHaveBeenCalledTimes(2);
+        expect(repository.findByClientId).toHaveBeenLastCalledWith(
+          BIA_ID,
+          CLIENT_ID,
+        );
+        expect(result).toEqual(storedDto);
+        expect(dispatcher.dispatch).not.toHaveBeenCalled();
+      });
+
+      it('P2002 sem mensagem com o clientId propaga o erro original', async () => {
+        const failure = prismaError('P2002');
+        repository.findByClientId.mockResolvedValue(null);
+        repository.create.mockRejectedValue(failure);
+
+        await expect(
+          service.send(bia, { content: 'olá', clientId: CLIENT_ID }),
+        ).rejects.toBe(failure);
+        expect(dispatcher.dispatch).not.toHaveBeenCalled();
+      });
+
+      it('outro erro do Prisma em create propaga, sem buscar pelo clientId de novo', async () => {
+        const failure = prismaError('P2003');
+        repository.findByClientId.mockResolvedValue(null);
+        repository.create.mockRejectedValue(failure);
+
+        await expect(
+          service.send(bia, { content: 'olá', clientId: CLIENT_ID }),
+        ).rejects.toBe(failure);
+        expect(repository.findByClientId).toHaveBeenCalledTimes(1);
+        expect(dispatcher.dispatch).not.toHaveBeenCalled();
+      });
+
+      describe('janela de digitação (TYPE-01 AC13)', () => {
+        it('mensagem USER nova zera o limite de 2 s: o próximo notify, a 1 s do anterior, dispara', async () => {
+          repository.findByClientId.mockResolvedValue(null);
+          repository.create.mockResolvedValue(stored);
+          typing.notify(bia, NOW);
+
+          await service.send(bia, { content: 'olá', clientId: CLIENT_ID });
+          typing.notify(bia, NOW + 1_000);
+
+          expect(typingDispatches()).toBe(2);
+        });
+
+        it('mensagem nova sem clientId também zera', async () => {
+          repository.create.mockResolvedValue(stored);
+          typing.notify(bia, NOW);
+
+          await service.send(bia, { content: 'olá' });
+          typing.notify(bia, NOW + 1_000);
+
+          expect(typingDispatches()).toBe(2);
+        });
+
+        it('zera só o autor: o limite de outro participante continua', async () => {
+          const ana = makeParticipant();
+          repository.create.mockResolvedValue(stored);
+          typing.notify(ana, NOW);
+
+          await service.send(bia, { content: 'olá' });
+          typing.notify(ana, NOW + 1_000);
+
+          expect(typingDispatches()).toBe(1);
+        });
+
+        it('reenvio com clientId já gravado não zera', async () => {
+          repository.findByClientId.mockResolvedValue(stored);
+          typing.notify(bia, NOW);
+
+          await service.send(bia, { content: 'olá', clientId: CLIENT_ID });
+          typing.notify(bia, NOW + 1_000);
+
+          expect(typingDispatches()).toBe(1);
+        });
+
+        it('corrida de P2002 (outro reenvio gravou antes) não zera', async () => {
+          repository.findByClientId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(stored);
+          repository.create.mockRejectedValue(prismaError('P2002'));
+          typing.notify(bia, NOW);
+
+          await service.send(bia, { content: 'olá', clientId: CLIENT_ID });
+          typing.notify(bia, NOW + 1_000);
+
+          expect(typingDispatches()).toBe(1);
+        });
+
+        it('falha do create não zera', async () => {
+          repository.create.mockRejectedValue(new Error('db down'));
+          typing.notify(bia, NOW);
+
+          await expect(service.send(bia, { content: 'olá' })).rejects.toThrow(
+            'db down',
+          );
+          typing.notify(bia, NOW + 1_000);
+
+          expect(typingDispatches()).toBe(1);
+        });
+      });
+
+      it('sem clientId: pula a busca e o P2002 em create propaga', async () => {
+        const failure = prismaError('P2002');
+        repository.create.mockRejectedValue(failure);
+
+        await expect(service.send(bia, { content: 'olá' })).rejects.toBe(
+          failure,
+        );
+        expect(repository.findByClientId).not.toHaveBeenCalled();
+        expect(limiter.tryAcquire).toHaveBeenCalledWith(BIA_ID, NOW);
+      });
     });
   });
 });

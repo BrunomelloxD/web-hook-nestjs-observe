@@ -30,6 +30,13 @@ export async function sendMessage(
   });
 
   if (response.status === 401) return endSession();
+  if (response.status === 429) {
+    return {
+      ok: false,
+      reason: 'rate_limited',
+      retryAfter: Number(response.headers.get('Retry-After')),
+    };
+  }
   if (!data) return { ok: false, reason: 'unexpected' };
 
   // No refresh(): the own message reaches the list over SSE, like everyone's.

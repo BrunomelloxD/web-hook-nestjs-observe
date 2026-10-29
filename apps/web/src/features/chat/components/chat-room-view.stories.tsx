@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { expect, fn } from 'storybook/test';
 import { chatDictionary as t } from '../chat.dictionary';
-import { makeConversation, makeMessage, me } from '../test-fixtures';
+import { asItems, makeConversation, me } from '../test-fixtures';
 import { ChatHeader } from './chat-header';
 import { ChatRoomView } from './chat-room-view';
 import { Composer } from './composer.client';
@@ -16,16 +16,12 @@ const meta = {
     header: <ChatHeader me={me} online={8} leaveAction={fn(async () => {})} />,
     list: (
       <MessageList
-        messages={makeConversation()}
+        items={asItems(makeConversation())}
         meId={me.id}
         footer={<TypingIndicator names={['Carlos']} />}
       />
     ),
-    composer: (
-      <Composer
-        send={fn(async () => ({ ok: true as const, message: makeMessage() }))}
-      />
-    ),
+    composer: <Composer onSend={fn()} />,
   },
   parameters: { layout: 'fullscreen' },
   play: async ({ canvas }) => {

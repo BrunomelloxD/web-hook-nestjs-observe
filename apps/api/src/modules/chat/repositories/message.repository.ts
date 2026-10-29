@@ -38,6 +38,16 @@ export class MessageRepository extends IMessageRepository {
     return page.reverse();
   }
 
+  findByClientId(
+    participantId: string,
+    clientId: string,
+  ): Promise<MessageWithAuthor | null> {
+    return this.prisma.message.findUnique({
+      where: { participantId_clientId: { participantId, clientId } },
+      ...WITH_AUTHOR,
+    });
+  }
+
   create(data: CreateMessageData): Promise<MessageWithAuthor> {
     return this.prisma.message.create({
       data: { type: MessageType.USER, ...data },

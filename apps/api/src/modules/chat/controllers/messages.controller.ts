@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
@@ -6,11 +14,13 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Participant } from '@/generated/prisma/client.js';
 import { CurrentParticipant } from '../decorators/current-participant.decorator.js';
+import { RateLimitedExceptionFilter } from '../filters/rate-limited-exception.filter.js';
 import { ListMessagesQuery } from '../dtos/request/list-messages.query.js';
 import { SendMessageDto } from '../dtos/request/send-message.dto.js';
 import { MessageResponseDto } from '../dtos/response/message-response.dto.js';
@@ -41,6 +51,7 @@ export class MessagesController {
 
   @Post()
   @UseGuards(ParticipantTokenGuard)
+  @UseFilters(RateLimitedExceptionFilter)
   @ApiOperation({ summary: 'Enviar uma mensagem' })
   @ApiHeader({
     name: PARTICIPANT_TOKEN_HEADER,
@@ -54,6 +65,16 @@ export class MessagesController {
   })
   @ApiUnauthorizedResponse({
     description: 'Token ausente, desconhecido ou de quem saiu',
+  })
+  @ApiTooManyRequestsResponse({
+    description:
+      'O participante já enviou 5 mensagens nos últimos 10 s. Um reenvio com clientId já gravado não conta',
+    headers: {
+      'Retry-After': {
+        description: 'Segundos inteiros até poder enviar de novo',
+        schema: { type: 'integer' },
+      },
+    },
   })
   send(
     @CurrentParticipant() actor: Participant,

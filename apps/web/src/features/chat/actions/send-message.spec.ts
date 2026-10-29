@@ -175,4 +175,23 @@ describe('sendMessage', () => {
     expect(redirect).not.toHaveBeenCalled();
     expect(jar.get('chat_session')).toBe(`${PARTICIPANT_ID}.${TOKEN}`);
   });
+
+  it('429 com Retry-After: 4 → { ok: false, reason: "rate_limited", retryAfter: 4 }, mantém a sessão e não chama refresh()', async () => {
+    const jar = withSession();
+    const calls = api(
+      () =>
+        new HttpResponse(null, {
+          status: 429,
+          headers: { 'Retry-After': '4' },
+        }),
+    );
+
+    await expect(
+      sendMessage({ content: 'olá', clientId: CLIENT_ID }),
+    ).resolves.toEqual({ ok: false, reason: 'rate_limited', retryAfter: 4 });
+    expect(calls).toHaveLength(1);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+    expect(jar.get('chat_session')).toBe(`${PARTICIPANT_ID}.${TOKEN}`);
+  });
 });

@@ -8,7 +8,11 @@
 
 Corroborated across multiple features. Safe to apply as guidance.
 
-_none_
+### L-022 - Check every success criterion against the limits the same spec introduces before confirming the spec
+- signal: `spec_precision_gap` · recurrence: 2 feature(s) · scope: `spec` · harmful: 0
+- features: chat-resilience, chat-extras
+- evidence: spec.md Success Criteria '100 envios seguidos' vs RATE-01 AC1 (spec) (+1 more)
+- last seen: 2026-10-29T18:10:33Z
 
 ## Candidates (under observation - do NOT load as guidance yet)
 
@@ -109,6 +113,72 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: chat-core
 - evidence: tasks.md T4/T7 SPEC_DEVIATION (apps/api/src/modules/chat/test/test-fixtures.spec.ts, dtos/response/test/chat-response-dtos.spec.ts) (test-plan)
 - last seen: 2026-10-15T01:48:46Z
+
+### L-017 - When the design adds directives to a header the spec names, write the full header value into the spec AC.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: chat-webhooks
+- evidence: validation.md note 1 SSE-01 AC2 apps/web/src/features/chat/realtime/sse.ts:9 (specs)
+- last seen: 2026-10-29T14:53:19Z
+
+### L-018 - Back build-time route properties such as dynamic rendering with an automated check of the build output, not a one-off log line.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `web-routes` · harmful: 0
+- features: chat-webhooks
+- evidence: validation.md note 2 SSE-01 AC7 apps/web/src/features/chat/realtime/open-chat-stream.ts:12 (web-routes)
+- last seen: 2026-10-29T14:53:19Z
+
+### L-019 - When an AC lists several endpoints, give each endpoint its own e2e assertion of the outcome.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `api-e2e` · harmful: 0
+- features: chat-webhooks
+- evidence: validation.md note 3 WHOUT AC3 apps/api/test/webhooks.e2e-spec.ts:172-180 (api-e2e)
+- last seen: 2026-10-29T14:53:19Z
+
+### L-020 - Cover generated shared secrets in env setup with a scripted check that both env files match and pass the schema.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `infra` · harmful: 0
+- features: chat-webhooks
+- evidence: validation.md note 4 WHIN-03 AC9 Makefile:10 (infra)
+- last seen: 2026-10-29T14:53:19Z
+
+### L-021 - When an AC is conditioned on a protocol trigger such as a header, add an AC and an E2E for the case where the trigger is absent, so the goal holds without it
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `realtime` · harmful: 0
+- features: chat-resilience
+- evidence: validation.md Gap 1; apps/web/src/features/chat/realtime/open-chat-stream.ts:48 (realtime)
+- last seen: 2026-10-29T16:40:55Z
+
+### L-023 - An E2E must not add setup steps that the success criterion does not state, since they can hide the uncovered case
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: chat-resilience
+- evidence: apps/web/e2e/chat-resilience.spec.ts:145-149 pre-seeded SSE message (e2e)
+- last seen: 2026-10-29T16:40:55Z
+
+### L-024 - When a spec edit adds a condition to an AC, add a test for that condition in the same change
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `spec-tests` · harmful: 0
+- features: chat-resilience
+- evidence: validation.md N9; apps/web/src/features/chat/components/chat-stream.client.tsx:66; RATE-02 AC4 (spec-tests)
+- last seen: 2026-10-29T17:11:41Z
+
+### L-025 - When polling a row with included relations after a transactional write, wait on the parent's updated fields too, since include runs separate queries that can straddle the commit
+- signal: `gate_fail` · recurrence: 1 feature(s) · scope: `api-e2e` · harmful: 0
+- features: chat-resilience
+- evidence: validation.md Gate run 1; apps/api/test/webhooks.e2e-spec.ts:355-362 (api-e2e)
+- last seen: 2026-10-29T17:19:09Z
+
+### L-026 - Catch the rejection of every fire-and-forget Server Action call on the client, since the transport can fail even when the action swallows its own errors
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `web-client` · harmful: 0
+- features: chat-extras
+- evidence: validation.md Gap 2; apps/web/src/features/chat/components/chat-stream.client.tsx:175 (web-client)
+- last seen: 2026-10-29T18:10:33Z
+
+### L-027 - An E2E that pages through shared data must keep that data bounded, or its runtime grows with every run
+- signal: `spec_deviation` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: chat-extras
+- evidence: validation.md Gap 3; apps/web/e2e/chat-extras.spec.ts:153-194 (e2e)
+- last seen: 2026-10-29T18:10:33Z
+
+### L-028 - When an E2E relies on a setup step to bound its data, assert the bound itself (size or count), not only a formula derived from the current data
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `e2e` · harmful: 0
+- features: chat-extras
+- evidence: validation.md M9 apps/web/e2e/global-setup.ts:7 (e2e)
+- last seen: 2026-10-29T19:12:48Z
 
 ## Quarantined (failed when applied - ignore)
 

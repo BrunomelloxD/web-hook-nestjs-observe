@@ -160,11 +160,15 @@ test('A envia e B vê sem recarregar; C entra e sai e A e B veem o contador muda
 test('20 mensagens de A: p95 entre o clique e a exibição em B < 1 s', async ({
   browser,
 }) => {
+  // SPEC_DEVIATION: A waits 2.1 s between sends, so the run takes ~45 s.
+  // Reason: RATE-01 (F3) allows 5 messages in 10 s per participant.
+  test.setTimeout(90_000);
   const a = await enter(browser, 'pa');
   const b = await enter(browser, 'pb');
   const latencies: number[] = [];
 
   for (let i = 1; i <= 20; i++) {
+    if (i > 1) await a.page.waitForTimeout(2_100);
     const content = `${PREFIX}${RUN} p95 #${String(i).padStart(2, '0')}`;
     await a.room.composer.fill(content);
     const started = Date.now();
@@ -201,7 +205,8 @@ test('B abre uma só conexão a /chat/stream e não faz nenhuma requisição em 
   await b.page.waitForTimeout(30_000);
 
   expect(b.requests.slice(before)).toEqual([]);
+  // B's own JOINED is on the page, so the stream starts after it (RECON-01 AC8).
   expect(streamRequests(b.requests)).toEqual([
-    expect.stringMatching(/\/chat\/stream$/),
+    expect.stringMatching(/\/chat\/stream\?after=\d+$/),
   ]);
 });

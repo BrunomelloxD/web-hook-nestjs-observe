@@ -21,7 +21,9 @@ export type MessageInput = { content: string; clientId: string };
 
 export type SendMessageResult =
   | { ok: true; message: ChatMessage }
-  | { ok: false; reason: 'invalid' | 'unexpected' };
+  | { ok: false; reason: 'invalid' | 'unexpected' }
+  /** `retryAfter` in seconds, from the api's `Retry-After` (RATE-02). */
+  | { ok: false; reason: 'rate_limited'; retryAfter: number };
 
 /** Lives here, not in actions/, so components can type the prop. */
 export type SendMessageAction = (

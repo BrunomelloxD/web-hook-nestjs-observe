@@ -129,6 +129,8 @@ test('A e B conversam recarregando; B sai, A vê a saída e B entra de novo', as
     content,
   );
   await expect(ownBubble).toContainText(t.room.you);
+  // The optimistic bubble (F3) is replaced once confirmed: measure the final one.
+  await expect(ownBubble).not.toContainText(t.message.sending);
   expect(await side(pageA, ownBubble)).toBe('right');
   await expect(roomA.composer).toHaveValue('');
 
@@ -253,14 +255,20 @@ test('GET /session/end apaga o cookie chat_session e responde 307 para /', async
 test('com 60 mensagens, o HTML do servidor de /chat traz as 50 últimas em ordem', async ({
   request,
 }) => {
-  const participant = await joinByApi(request, nameFor('f'));
+  // SPEC_DEVIATION: 12 participants × 5, not 60 from one participant.
+  // Reason: RATE-01 (F3) refuses a 6th message within 10 s.
+  const senders: Created[] = [];
+  for (let i = 0; i < 12; i++) {
+    senders.push(await joinByApi(request, nameFor(`f${i}`)));
+  }
+  const participant = senders[0]!;
   const sent = Array.from(
     { length: 60 },
     (_, i) => `${PREFIX}${RUN}-m${String(i + 1).padStart(2, '0')}`,
   );
-  for (const content of sent) {
+  for (const [i, content] of sent.entries()) {
     const response = await request.post(`${API_URL}/api/v1/chat/messages`, {
-      headers: { 'X-Participant-Token': participant.token },
+      headers: { 'X-Participant-Token': senders[Math.floor(i / 5)]!.token },
       data: { content },
     });
     expect(response.status()).toBe(201);

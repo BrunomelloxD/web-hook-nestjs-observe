@@ -586,10 +586,12 @@ T22
 
 **Done when**:
 
-- [ ] PRD e FigCraft mostram os mesmos valores do `globals.css`
+- [x] PRD e FigCraft mostram os mesmos valores do `globals.css`
 - [x] Build gate passa (`prettier --check`)
 
-**Blocked (FigCraft)**: o PRD já tinha os 4 valores AA e o caminho `.specs/figcraft/index.figcraft`; ganhou a tabela dos pares `avatar/*`. A coleção Tema do FigCraft ainda tem os valores antigos. A escrita via MCP (`variable.set`) foi negada pelo classificador de permissões. As 3 escritas que passaram foram desfeitas, e o arquivo em disco não mudou. Falta aplicar na coleção Tema: `text/secondary` Light `#687080`, `text/muted` Light `#68707F` e Dark `#7C8597`, `brand/default` Dark `#5B5EF0`. Depois, salvar o arquivo.
+**Resolved 2026-10-29 (FigCraft)**: com a aprovação do usuário, os 4 valores foram gravados na coleção Tema via MCP (`variable.set`) e o arquivo foi salvo. Uma exportação CSS da coleção bate com o `globals.css` em todas as 17 cores, nos dois temas.
+
+**Blocked before (FigCraft)**: o PRD já tinha os 4 valores AA e o caminho `.specs/figcraft/index.figcraft`; ganhou a tabela dos pares `avatar/*`. A coleção Tema do FigCraft ainda tem os valores antigos. A escrita via MCP (`variable.set`) foi negada pelo classificador de permissões. As 3 escritas que passaram foram desfeitas, e o arquivo em disco não mudou. Falta aplicar na coleção Tema: `text/secondary` Light `#687080`, `text/muted` Light `#68707F` e Dark `#7C8597`, `brand/default` Dark `#5B5EF0`. Depois, salvar o arquivo.
 
 **Findings from the frame comparison (T19/T20)**:
 

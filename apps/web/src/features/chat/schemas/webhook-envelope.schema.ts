@@ -24,6 +24,13 @@ export const webhookEnvelopeSchema = z.discriminatedUnion('type', [
     occurredAt: z.iso.datetime(),
     data: z.object({ online: z.number().int().nonnegative() }),
   }),
+  z.object({
+    type: z.literal('typing.started'),
+    occurredAt: z.iso.datetime(),
+    data: z.object({
+      participant: z.object({ id: z.uuid(), name: z.string() }),
+    }),
+  }),
 ]);
 
 export type WebhookEnvelope = z.infer<typeof webhookEnvelopeSchema>;

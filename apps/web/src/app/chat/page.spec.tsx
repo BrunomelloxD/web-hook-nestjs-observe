@@ -1,5 +1,10 @@
 import { render, screen } from '@testing-library/react';
-import { leave, sendMessage } from '@/features/chat';
+import {
+  leave,
+  loadOlderMessages,
+  notifyTyping,
+  sendMessage,
+} from '@/features/chat';
 import ChatPage from './page';
 
 const containerProps = vi.hoisted(() => vi.fn());
@@ -8,6 +13,8 @@ const containerProps = vi.hoisted(() => vi.fn());
 vi.mock('@/features/chat', () => ({
   sendMessage: vi.fn(),
   leave: vi.fn(),
+  notifyTyping: vi.fn(),
+  loadOlderMessages: vi.fn(),
   ChatRoomContainer: (props: unknown) => {
     containerProps(props);
     return <div>sala</div>;
@@ -15,12 +22,17 @@ vi.mock('@/features/chat', () => ({
 }));
 
 describe('ChatPage', () => {
-  it('passa sendMessage e leave ao ChatRoomContainer', () => {
+  it('passa sendMessage, leave, notifyTyping e loadOlderMessages ao ChatRoomContainer', () => {
     render(<ChatPage />);
 
     expect(screen.getByText('sala')).toBeInTheDocument();
     expect(containerProps).toHaveBeenCalledWith({
-      actions: { send: sendMessage, leave },
+      actions: {
+        send: sendMessage,
+        leave,
+        typing: notifyTyping,
+        loadOlder: loadOlderMessages,
+      },
     });
   });
 });

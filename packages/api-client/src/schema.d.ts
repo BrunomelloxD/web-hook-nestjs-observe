@@ -105,6 +105,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chat/typing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Avisar que o participante está digitando */
+        post: operations["TypingController_notify_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -643,6 +660,43 @@ export interface operations {
             };
             /** @description Conteúdo vazio, acima de 1000 caracteres ou clientId inválido */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token ausente, desconhecido ou de quem saiu */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description O participante já enviou 5 mensagens nos últimos 10 s. Um reenvio com clientId já gravado não conta */
+            429: {
+                headers: {
+                    /** @description Segundos inteiros até poder enviar de novo */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TypingController_notify_v1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token devolvido pelo POST /chat/participants */
+                "X-Participant-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aviso aceito. A menos de 2 s do último aceito do mesmo participante, não dispara webhook */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

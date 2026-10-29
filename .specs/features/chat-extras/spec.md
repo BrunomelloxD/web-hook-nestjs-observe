@@ -28,6 +28,7 @@ O chat já está completo e robusto, mas a pessoa só vê as últimas 50 mensage
 | D3: lista de quem está online                  | Não exibir; só o contador                                                                                  | Proposta do PRD                                                           | n          |
 | Frequência de `notifyTyping`                   | No máximo uma chamada a cada 3 s por participante, enquanto há teclas no campo                             | Com o aviso durando 5 s, 3 s mantém o aviso contínuo sem inundar a api    | n          |
 | Limite de `POST /typing` na api                | Chamadas a menos de 2 s da anterior do mesmo participante respondem `204` sem disparar webhook             | Protege o fluxo de webhooks de clientes que ignoram o limite do navegador | n          |
+| Janela de digitação depois de um envio         | O envio recomeça a janela de 3 s do `Composer`, e a mensagem `USER` gravada zera o limite de 2 s da api    | A mensagem tira o autor do aviso (AC9); a resposta seguinte avisa na hora | n          |
 | Retentativa de `typing.started`                | Usa o mesmo dispatcher, mas sem retentativa (1 tentativa), registrada em `webhook_deliveries`              | Um aviso de digitação atrasado em 10 min não tem valor                    | n          |
 | Vários digitando                               | 1 pessoa: "{nome} está digitando…"; 2: "{a} e {b} estão digitando…"; 3+: "Várias pessoas estão digitando…" | O PRD só define o caso de uma pessoa                                      | n          |
 | Quando mostrar "Carregar mensagens anteriores" | Enquanto a última página carregada (inicial ou anterior) veio com 50 itens                                 | Página incompleta indica o início da sala                                 | n          |
@@ -58,6 +59,8 @@ O chat já está completo e robusto, mas a pessoa só vê as últimas 50 mensage
 9. WHEN chega uma mensagem `USER` de um participante que está no `TypingIndicator` THEN o `TypingIndicator` SHALL removê-lo na hora
 10. WHILE há exatamente dois participantes digitando the `TypingIndicator` SHALL mostrar "{a} e {b} estão digitando…"
 11. WHILE há três ou mais participantes digitando the `TypingIndicator` SHALL mostrar "Várias pessoas estão digitando…"
+12. WHEN a pessoa envia uma mensagem THEN o `Composer` SHALL recomeçar a janela de 3 s do AC1, para que a próxima tecla depois do envio chame `notifyTyping` na hora
+13. WHEN a api grava uma mensagem `USER` de um participante THEN ela SHALL zerar o limite de 2 s do AC4 para esse participante, para que o próximo `POST /typing` dele dispare o webhook; um reenvio com `clientId` já gravado (F3, OPT-02) SHALL não zerar
 
 **Independent Test**: E2E: A digita sem enviar e B vê "A está digitando…"; 5 s depois de A parar, o aviso some.
 
@@ -93,11 +96,11 @@ O chat já está completo e robusto, mas a pessoa só vê as últimas 50 mensage
 
 ## Requirement Traceability
 
-| Requirement ID | Story                   | Tasks                    | Phase | Status   |
-| -------------- | ----------------------- | ------------------------ | ----- | -------- |
-| TYPE-01        | P3: Digitando (AC 1-5)  | T1, T2, T3, T6, T10, T14 | Tasks | In Tasks |
-| TYPE-02        | P3: Digitando (AC 6-11) | T4, T5, T8, T9, T12, T14 | Tasks | In Tasks |
-| HIST-01        | P3: Anteriores (AC 1-7) | T7, T8, T11, T12, T14    | Tasks | In Tasks |
+| Requirement ID | Story                         | Tasks                                   | Phase   | Status   |
+| -------------- | ----------------------------- | --------------------------------------- | ------- | -------- |
+| TYPE-01        | P3: Digitando (AC 1-5, 12-13) | T1, T2, T3, T6, T10, T14, T15, T16, T17 | Execute | Verified |
+| TYPE-02        | P3: Digitando (AC 6-11)       | T4, T5, T8, T9, T12, T14                | Execute | Verified |
+| HIST-01        | P3: Anteriores (AC 1-7)       | T7, T8, T11, T12, T14, T18              | Execute | Verified |
 
 **Coverage:** 3 total, 3 mapped to tasks, 0 unmapped ✅
 
@@ -105,6 +108,6 @@ O chat já está completo e robusto, mas a pessoa só vê as últimas 50 mensage
 
 ## Success Criteria
 
-- [ ] E2E do "digitando" e da paginação verdes
-- [ ] Nenhuma requisição periódica nova (o `notifyTyping` só dispara com teclas)
-- [ ] `make gate` e `make e2e` verdes
+- [x] E2E do "digitando" e da paginação verdes
+- [x] Nenhuma requisição periódica nova (o `notifyTyping` só dispara com teclas)
+- [x] `make gate` e `make e2e` verdes
