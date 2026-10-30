@@ -33,7 +33,9 @@ RUN npx turbo run build --filter=web
 
 # ---------- production (Next standalone) ----------
 FROM node:24-alpine AS production
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
+# "::" listens on IPv6 and IPv4: the api delivers webhooks over Railway's
+# private network, which is IPv6-only in environments created before 2025-10-16.
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=:: PORT=3000
 WORKDIR /app
 USER node
 COPY --from=builder --chown=node:node /app/apps/web/.next/standalone ./

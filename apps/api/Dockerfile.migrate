@@ -1,0 +1,33 @@
+# Applies the pending Prisma migrations and exits (Railway "migrate" service).
+# Own file: Railway builds the last stage of the Dockerfile it points to, and
+# apps/api/Dockerfile must end at "production" (no Prisma CLI there, on purpose).
+# Build from the monorepo root:
+#   docker build -f apps/api/Dockerfile.migrate -t api-migrate .
+# Run:
+#   docker run --rm -e DATABASE_URL=postgresql://... api-migrate
+
+# ---------- base ----------
+FROM node:24-alpine AS base
+ENV TURBO_TELEMETRY_DISABLED=1
+WORKDIR /app
+RUN chown node:node /app
+USER node
+
+# ---------- pruner ----------
+FROM base AS pruner
+COPY --chown=node:node . .
+RUN npx --yes turbo@$(node -p "require('./package.json').devDependencies.turbo") prune api --docker
+
+# ---------- deps ----------
+# Full install: the Prisma CLI is an optional peer of @prisma/client.
+FROM base AS deps
+COPY --from=pruner --chown=node:node /app/out/json/ .
+RUN npm ci
+
+# ---------- migrate ----------
+FROM deps AS migrate
+ENV NODE_ENV=production
+COPY --from=pruner --chown=node:node /app/out/full/apps/api/prisma ./apps/api/prisma
+COPY --from=pruner --chown=node:node /app/out/full/apps/api/prisma.config.ts ./apps/api/
+WORKDIR /app/apps/api
+CMD ["npx", "prisma", "migrate", "deploy"]
