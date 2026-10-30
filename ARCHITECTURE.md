@@ -167,23 +167,24 @@ Antes de escrever algo novo, procure se já existe. Quando algo for compartilhad
 
 ### 7.1 Makefile (uso do dia a dia)
 
-| Comando                      | O que faz                                                                                                                                                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `make` / `make help`         | lista os comandos                                                                                                                                                                                                |
-| **Setup e qualidade**        |                                                                                                                                                                                                                  |
-| `make install`               | cria os `.env` que faltam (a partir dos `.env.example`, trocando `<nome-do-projeto>` pelo `name` do `package.json`), roda `npm install`, instala o Chromium do Playwright e gera o contrato (`npm run generate`) |
-| `make gate`                  | sobe o banco, aplica as migrations e roda `npm run check`. É exatamente o que o job "Qualidade" do CI roda. Não inclui o E2E                                                                                     |
-| `make e2e`                   | sobe a stack em segundo plano (`docker compose up -d --wait`) e roda o Playwright. É o que o job "E2E" do CI roda. A stack continua no ar depois (`make down` para parar)                                        |
-| **Ambiente local**           |                                                                                                                                                                                                                  |
-| `make dev`                   | `docker compose up --build`: database → migrations → api → web, com logs no terminal. O Ctrl+C só **para** os containers                                                                                         |
-| `make down`                  | para e remove os containers. `make down v=1` apaga também o volume do banco                                                                                                                                      |
-| `make logs`                  | acompanha os logs da stack. `make logs s=api` mostra um serviço só                                                                                                                                               |
-| `make storybook`             | Storybook do web em `http://localhost:6006`                                                                                                                                                                      |
-| **Banco de dados**           |                                                                                                                                                                                                                  |
-| `make migrate`               | sobe o banco (se não estiver rodando) e aplica as migrations pendentes                                                                                                                                           |
-| `make migration name=<nome>` | cria uma migration a partir das mudanças no `schema.prisma` (`prisma migrate dev`). Sem mudanças, avisa e não cria nada                                                                                          |
-| `make seeder`                | roda as migrations e depois os seeders                                                                                                                                                                           |
-| `make reset`                 | **apaga o banco local**, reaplica as migrations e roda os seeders. Pede confirmação (`make reset force=1` pula a pergunta). Só para o banco de desenvolvimento                                                   |
+| Comando                      | O que faz                                                                                                                                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `make` / `make help`         | lista os comandos                                                                                                                                                                                                  |
+| **Setup e qualidade**        |                                                                                                                                                                                                                    |
+| `make install`               | cria os `.env` que faltam (a partir dos `.env.example`, trocando `<nome-do-projeto>` pelo `name` do `package.json`), roda `npm install`, instala o Chromium do Playwright e gera o contrato (`npm run generate`)   |
+| `make gate`                  | sobe o banco, aplica as migrations e roda `npm run check`. É exatamente o que o job "Qualidade" do CI roda. Não inclui o E2E                                                                                       |
+| `make e2e`                   | gera o Prisma client no host, sobe a stack em segundo plano (`docker compose up -d --wait`) e roda o Playwright. É o que o job "E2E" do CI roda. A stack continua no ar depois (`make down` para parar)            |
+| `make smoke`                 | constrói as imagens de produção (api, migrate e web) sem `.env`, sobe cada uma só com as variáveis do deploy e confere `/health`, `/` e a entrega de um webhook da api ao web. É o job "Imagens de produção" do CI |
+| **Ambiente local**           |                                                                                                                                                                                                                    |
+| `make dev`                   | `docker compose up --build`: database → migrations → api → web, com logs no terminal. O Ctrl+C só **para** os containers                                                                                           |
+| `make down`                  | para e remove os containers. `make down v=1` apaga também o volume do banco                                                                                                                                        |
+| `make logs`                  | acompanha os logs da stack. `make logs s=api` mostra um serviço só                                                                                                                                                 |
+| `make storybook`             | Storybook do web em `http://localhost:6006`                                                                                                                                                                        |
+| **Banco de dados**           |                                                                                                                                                                                                                    |
+| `make migrate`               | sobe o banco (se não estiver rodando) e aplica as migrations pendentes                                                                                                                                             |
+| `make migration name=<nome>` | cria uma migration a partir das mudanças no `schema.prisma` (`prisma migrate dev`). Sem mudanças, avisa e não cria nada                                                                                            |
+| `make seeder`                | roda as migrations e depois os seeders                                                                                                                                                                             |
+| `make reset`                 | **apaga o banco local**, reaplica as migrations e roda os seeders. Pede confirmação (`make reset force=1` pula a pergunta). Só para o banco de desenvolvimento                                                     |
 
 Os `.env` **nunca são sobrescritos**: o `make` só cria o arquivo quando ele não existe.
 
@@ -244,19 +245,23 @@ No Compose, as URLs entre containers (`DATABASE_URL` → `database`, `API_URL` �
 
 ## 9. Imagens de produção
 
-As duas partem da **raiz** e usam `turbo prune` para levar só o necessário:
+As três partem da **raiz** e usam `turbo prune` para levar só o necessário:
 
 ```bash
 docker build -f apps/api/Dockerfile --target production -t api .
+docker build -f apps/api/Dockerfile.migrate -t api-migrate .
 docker build -f apps/web/Dockerfile --target production -t web .
 ```
 
-| Imagem | Conteúdo                                                | Usuário |
-| ------ | ------------------------------------------------------- | ------- |
-| api    | `node_modules` de produção + `dist` (sem CLI do Prisma) | `node`  |
-| web    | `.next/standalone` + estáticos                          | `node`  |
+| Imagem        | Conteúdo                                                | Comando                     | Usuário |
+| ------------- | ------------------------------------------------------- | --------------------------- | ------- |
+| api           | `node_modules` de produção + `dist` (sem CLI do Prisma) | `node dist/app/main.js`     | `node`  |
+| api (migrate) | dependências completas + `prisma/` e `prisma.config.ts` | `npx prisma migrate deploy` | `node`  |
+| web           | `.next/standalone` + estáticos, escutando em `::`       | `node apps/web/server.js`   | `node`  |
 
-As migrations de produção rodam no pipeline, antes do deploy da api: a imagem de produção não tem a CLI do Prisma.
+A imagem de produção da api não tem a CLI do Prisma: as migrations rodam pela imagem `migrate`, um arquivo próprio porque o Railway constrói o último estágio do Dockerfile que recebe. O web escuta em `::` (IPv6 e IPv4) porque recebe os webhooks da api pela rede privada ([seção 12](#12-deploy-no-railway)).
+
+O `.dockerignore` deixa todo `.env` fora do contexto; o `make smoke` confere que nenhuma imagem leva um.
 
 ---
 
@@ -264,26 +269,81 @@ As migrations de produção rodam no pipeline, antes do deploy da api: a imagem 
 
 **O CI roda os mesmos comandos `make` usados localmente.** Se `make gate` e `make e2e` passam na sua máquina, passam no CI.
 
-| Job       | Passos                                              |
-| --------- | --------------------------------------------------- |
-| Qualidade | `npm ci` → Chromium do Playwright → **`make gate`** |
-| E2E       | `npm ci` → Chromium do Playwright → **`make e2e`**  |
-| Imagens   | build das imagens de produção da api e do web       |
+| Job                 | Passos                                              |
+| ------------------- | --------------------------------------------------- |
+| Qualidade           | `npm ci` → Chromium do Playwright → **`make gate`** |
+| E2E                 | `npm ci` → Chromium do Playwright → **`make e2e`**  |
+| Imagens de produção | **`make smoke`**                                    |
 
 - O banco do CI é o mesmo do ambiente local: o `make` sobe o Postgres pelo Docker Compose.
 - Os `.env` são criados pelo `make` a partir dos `.env.example`.
 - Os jobs rodam o projeto inteiro em todo PR (sem filtro de pacotes afetados), exatamente como o `make gate` local.
+- O usuário do runner não tem o uid 1000 do usuário `node` das imagens, então o container da api não escreve no `src/` montado. O Prisma client do container fica num volume anônimo (`/app/apps/api/src/generated`), e o `make e2e` gera o client no host antes de subir a stack, para o Docker não criar essa pasta como root.
 
-**Bloqueiam o merge:** erro de lint ou de convenção, erro de tipo, **cobertura abaixo de 100%**, falha de build, story quebrada ou com violação de acessibilidade, e falha no E2E.
+**Bloqueiam o merge:** erro de lint ou de convenção, erro de tipo, **cobertura abaixo de 100%**, falha de build, story quebrada ou com violação de acessibilidade, falha no E2E e imagem de produção que não sobe.
 
 Os artefatos publicados são a cobertura, o Storybook estático e o relatório do Playwright.
 
-Deploy não está configurado: depende de onde cada app vai rodar.
+O deploy não passa pelo CI: o Railway constrói as imagens a partir do repositório ([seção 12](#12-deploy-no-railway)).
 
 ---
 
 ## 11. Dependências e segurança
 
-- O `npm audit` acusa vulnerabilidades em dependências **das CLIs** do Prisma (`mysql2`, `deepmerge-ts`) e do shadcn (`braces`, `fast-glob`).
-- Nenhuma delas vai para as imagens de produção: a CLI do Prisma é removida da imagem da api, e o shadcn é só devDependency.
-- As correções sugeridas pelo `npm audit fix --force` são **downgrades de versão major** e não devem ser aplicadas. Acompanhe as versões novas do Prisma e do shadcn.
+- O `npm audit` acusa só dependências do shadcn (`zod` e `deepmerge`), que é devDependency e não vai para as imagens de produção.
+- A correção sugerida exige `npm audit fix --force` (sai do pin exato do shadcn) e não foi aplicada. Acompanhe as versões novas do shadcn.
+
+---
+
+## 12. Deploy no Railway
+
+Referências: [monorepo](https://docs.railway.com/deployments/monorepo), [Dockerfiles](https://docs.railway.com/guides/dockerfiles), [rede privada](https://docs.railway.com/guides/private-networking).
+
+O monorepo é **compartilhado** (os apps usam `packages/*`). Por isso todo serviço que constrói imagem tem **Root Directory vazio**: os Dockerfiles partem da raiz, com `turbo prune`. Cada serviço escolhe o Dockerfile pela variável `RAILWAY_DOCKERFILE_PATH`. A configuração fica nos serviços do Railway, sem `railway.json`: o config-as-code está obsoleto no Railway.
+
+### 12.1 Serviços
+
+| Serviço    | `RAILWAY_DOCKERFILE_PATH`     | Domínio público | Outras configurações                                                                        |
+| ---------- | ----------------------------- | --------------- | ------------------------------------------------------------------------------------------- |
+| `web`      | `apps/web/Dockerfile`         | sim (HTTPS)     | porta 3000; healthcheck em `/`; **1 réplica** (o hub do tempo real fica em memória, AD-003) |
+| `api`      | `apps/api/Dockerfile`         | **não**         | `PORT=3333`; healthcheck em `/health`. Só o web chama a api                                 |
+| `migrate`  | `apps/api/Dockerfile.migrate` | não             | restart policy "Never": roda `prisma migrate deploy` e encerra                              |
+| `Postgres` | gerenciado                    | não             | a `DATABASE_URL` **privada** vai para `api` e `migrate`                                     |
+
+O webhook vai da api para o web pela rede privada (`http://<serviço-web>.railway.internal:3000/webhooks/chat`) e o web chama a api também pela rede privada. Nenhum dos dois sai pela internet. Nos ambientes do Railway criados antes de 16/10/2025, a rede privada é só IPv6: o web escuta em `::` (`HOSTNAME` no Dockerfile) e o Nest escuta em `::` por padrão.
+
+**Watch paths** (um commit num app não reconstrói o outro):
+
+- `api` e `migrate`: `apps/api/**`, `packages/**`, `package-lock.json`, `package.json`, `turbo.json`;
+- `web`: `apps/web/**`, `packages/**`, `package-lock.json`, `package.json`, `turbo.json` e `apps/api/src/**` (o build do web gera os tipos a partir do OpenAPI da api).
+
+### 12.2 Variáveis
+
+Só os nomes; os valores ficam no Railway. Use as referências de variável do Railway (`${{Postgres.DATABASE_URL}}`, `${{web.RAILWAY_PRIVATE_DOMAIN}}`) em vez de copiar valores.
+
+| Serviço   | Variáveis                                                                                                                                                                                                                                                               |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api`     | `RAILWAY_DOCKERFILE_PATH`, `NODE_ENV=production`, `PORT=3333`, `APP_NAME`, `LOG_LEVEL`, `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `CORS_ORIGIN` (URL pública do web), `WEBHOOK_TARGET_URL=http://${{web.RAILWAY_PRIVATE_DOMAIN}}:3000/webhooks/chat`, `WEBHOOK_SECRET` |
+| `migrate` | `RAILWAY_DOCKERFILE_PATH`, `DATABASE_URL=${{Postgres.DATABASE_URL}}`                                                                                                                                                                                                    |
+| `web`     | `RAILWAY_DOCKERFILE_PATH`, `API_URL=http://${{api.RAILWAY_PRIVATE_DOMAIN}}:3333`, `WEBHOOK_SECRET` (o mesmo da api)                                                                                                                                                     |
+
+Gere o `WEBHOOK_SECRET` de produção uma vez e grave o mesmo valor na api e no web:
+
+```bash
+echo "whsec_$(openssl rand -base64 32)"
+```
+
+Com segredos diferentes, o web responde `401` a todo webhook e o chat deixa de atualizar em tempo real.
+
+### 12.3 Primeiro deploy
+
+Nesta ordem: `Postgres` → `migrate` (encerra com 0) → `api` (healthcheck verde) → `web`. Depois, gere o domínio público do web e grave a URL dele no `CORS_ORIGIN` da api.
+
+### 12.4 Operação
+
+- **Migration nova.** O Railway não ordena serviços entre si. Quando um commit traz migration, rode o `migrate` e espere o código 0 **antes** de promover o deploy da api. Sem a migration, a api falha nas consultas novas; o healthcheck em `/health` só confere a conexão com o banco.
+- **Escala.** O web roda com **uma réplica**: o hub em memória só conhece os navegadores do próprio processo, e o webhook chega em uma instância só (AD-003). A api pode ter mais réplicas, mas o limite de envio e o de digitação são por processo (AD-004, AD-005).
+- **Rotação do `WEBHOOK_SECRET`.** Troque na api e no web **juntos** e faça o redeploy dos dois; entre um e outro, os webhooks recebem `401` e se perdem (sem outbox, AD-005). A reconexão do navegador recupera as mensagens pelo `seq`.
+- **Rollback de aplicação.** O Railway guarda os deploys anteriores: volte para o último saudável.
+- **Rollback de banco.** As migrations do Prisma só vão para frente. Uma migration destrutiva exige plano próprio: backup antes e migration de reversão escrita à mão.
+- **Antes de subir.** `make smoke` reproduz o deploy localmente: constrói as três imagens sem `.env`, aplica as migrations num banco vazio, sobe api e web só com as variáveis desta seção e confere que um webhook chega ao web.

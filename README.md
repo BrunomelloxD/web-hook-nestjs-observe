@@ -46,6 +46,11 @@ O `make install` cria os `.env` que faltam e gera um `WEBHOOK_SECRET` aleatório
 | `make reset`                 | apaga o banco local, reaplica as migrations e roda os seeders (pede confirmação)    |
 | `make gate`                  | tudo que o CI roda: formatação, lint, tipos, testes (100%), build e Storybook       |
 | `make e2e`                   | testes E2E (Playwright) contra a stack; apaga do banco os participantes `e2e-web-*` |
+| `make smoke`                 | constrói as imagens de produção e confere que sobem como no Railway                 |
 | `make storybook`             | Storybook do web                                                                    |
 
 Lista completa em [ARCHITECTURE.md](ARCHITECTURE.md#7-comandos-na-raiz).
+
+## Deploy
+
+No Railway: api, web, migrate e Postgres, com os serviços falando pela rede privada. Serviços, variáveis, ordem do primeiro deploy e operação: [ARCHITECTURE.md §12](ARCHITECTURE.md#12-deploy-no-railway).
