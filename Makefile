@@ -9,7 +9,7 @@ ENV_FILES := .env apps/api/.env apps/web/.env
 # One value per make run, so apps/api/.env and apps/web/.env created together share it.
 WEBHOOK_SECRET := whsec_$(shell node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))")
 
-.PHONY: help install gate dev down logs migrate migration seeder reset e2e storybook env db
+.PHONY: help install gate smoke dev down logs migrate migration seeder reset e2e storybook env db
 
 help: ## Lista os comandos
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) \
@@ -25,7 +25,12 @@ install: env ## Instala as dependências (api, web e pacotes) e prepara o ambien
 gate: migrate ## Roda tudo que o CI roda: formatação, lint, tipos, testes (100%), build e Storybook
 	npm run check
 
+smoke: ## Constrói as imagens de produção sem .env, sobe como no Railway e confere /health, / e um webhook
+	./scripts/smoke.sh
+
 e2e: env ## Sobe a stack em segundo plano e roda os testes E2E (Playwright)
+	# Generated before the stack: compose would create src/generated owned by root.
+	npm run generate $(API)
 	$(COMPOSE) up -d --build --wait
 	npm run test:e2e $(WEB)
 

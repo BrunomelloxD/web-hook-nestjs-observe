@@ -45,6 +45,9 @@ services:
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/prisma:/app/apps/api/prisma
+      # The Prisma client is generated inside the container, whoever owns the
+      # host files (the CI runner isn't uid 1000 like the image's node user).
+      - /app/apps/api/src/generated
     env_file:
       - apps/api/.env
     # Container network overrides.

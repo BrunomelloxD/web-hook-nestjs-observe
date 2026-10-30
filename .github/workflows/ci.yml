@@ -54,6 +54,8 @@ jobs:
   e2e:
     name: E2E (make e2e)
     runs-on: ubuntu-latest
+    # The suite takes ~4 min; a hang must not hold the runner for hours.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -81,13 +83,12 @@ jobs:
           path: apps/web/playwright-report
           if-no-files-found: ignore
 
-  images:
-    name: Imagens Docker
+  # Builds the production images (api, migrate, web) as Railway does and checks
+  # that they start with only the deploy variables and deliver a webhook.
+  smoke:
+    name: Imagens de produção (make smoke)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [api, web]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - name: Build ${{ matrix.app }} (production)
-        run: docker build -f apps/${{ matrix.app }}/Dockerfile --target production -t ${{ matrix.app }}:ci .
+      - run: make smoke
