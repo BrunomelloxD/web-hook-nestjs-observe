@@ -66,4 +66,5 @@
   - Dev only: the `globalThis` ChatHub survives HMR, so a change to the hub needs `docker compose restart web`.
   - D2: messages are kept forever.
 - **Blockers**: none.
-- **Branch**: `main`, local commits only (nothing pushed).
+- **Deploy (2026-10-30)**: Railway project `web-hook-nestjs-observe` (environment `production`) with `Postgres`, `migrate`, `api` (private only) and `web` (https://web-production-a4012.up.railway.app). A two-browser check against production passed (message delivered in ~0.8 s; 10/10 webhooks answered 204 over the private network). CI run 41069298049 passed all three jobs.
+- **Branch**: `main`, tracks `origin/main`.

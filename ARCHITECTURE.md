@@ -337,7 +337,9 @@ Com segredos diferentes, o web responde `401` a todo webhook e o chat deixa de a
 
 ### 12.3 Primeiro deploy
 
-Nesta ordem: `Postgres` → `migrate` (encerra com 0) → `api` (healthcheck verde) → `web`. Depois, gere o domínio público do web e grave a URL dele no `CORS_ORIGIN` da api.
+Crie os serviços nesta ordem: `Postgres` → `migrate` → `web` → `api`. A api referencia o web (`${{web.RAILWAY_PRIVATE_DOMAIN}}` e `${{web.RAILWAY_PUBLIC_DOMAIN}}`) e o web referencia a api. Uma referência gravada antes de o serviço existir fica vazia mesmo depois: a api não sobe ("Invalid URL" em `WEBHOOK_TARGET_URL`) até a variável ser gravada de novo. Por isso, crie o web antes da api, ou grave de novo as variáveis da api depois de criar o web.
+
+Depois: gere o domínio público do web, confira o `CORS_ORIGIN` da api e espere o `migrate` encerrar com 0 antes do primeiro deploy saudável da api.
 
 ### 12.4 Operação
 
